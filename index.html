@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工事管理ダッシュボード（役員用）</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--nav:#15233B;--ink:#1A2533;--sub:#64717F;--bg:#EBEFF4;--card:#FFFFFF;--line:#DDE4EC;--line2:#EDF1F5;
+  --accent:#3B6FE0;--accent-w:#E7EEFC;--ok:#1C7A56;--mid:#B0851A;--low:#C2683A;--neg:#C0392B;
+  --c1:#2F6FE0;--c2:#1D9E8B;--c3:#E09A24;--c4:#D9603A;--c5:#8B97A4;}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Yu Gothic','Meiryo',system-ui,sans-serif;-webkit-font-smoothing:antialiased;font-size:13px;line-height:1.55}
+.num{font-family:'SF Mono','Roboto Mono',ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.appbar{background:linear-gradient(180deg,#1B2C49,#15233B);color:#fff;padding:0 22px;display:flex;align-items:center;gap:14px;height:56px}
+.logo{width:32px;height:32px;border-radius:8px;background:#3B6FE0;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:17px}
+.app-t{font-size:15px;font-weight:800;line-height:1.15}
+.app-t small{display:block;font-size:10px;font-weight:600;color:#9DB0CC;letter-spacing:.14em}
+.appbar .grow{flex:1}
+.appbar .exp{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);color:#DCE6F5;font:inherit;font-weight:700;font-size:12px;border-radius:8px;padding:7px 13px;cursor:pointer}
+.main{max-width:1240px;margin:0 auto;padding:16px 22px 70px}
+.imports{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:12px}
+.slot{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;display:flex;align-items:center;gap:12px;transition:.15s}
+.slot.hot{border-color:var(--accent);background:var(--accent-w)}
+.slot .ic{width:38px;height:38px;border-radius:9px;background:#EEF3FA;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.slot .t{flex:1;min-width:0}
+.slot .t b{font-size:13px} .slot .t .tag{font-size:9px;font-weight:800;color:#1D9E8B;background:#E1F5EF;border-radius:4px;padding:1px 5px;margin-left:6px}
+.slot .t .st{font-size:11px;color:var(--sub);display:flex;align-items:center;gap:5px}
+.slot .t .st .led{width:7px;height:7px;border-radius:50%;background:#C7CFD8} .slot .t .st .led.on{background:#23A06B}
+.slot label.pick{background:var(--ink);color:#fff;font:inherit;font-weight:700;font-size:12px;border-radius:8px;padding:8px 13px;cursor:pointer;white-space:nowrap}
+.slot label.pick input{display:none}
+.batchbar{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.batchbar .lab{font-size:11px;font-weight:800;color:var(--sub)}
+.batchbar .memo{font-size:11px;font-weight:800;color:var(--sub);background:#F1F5FA;border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+.batchbar .memo.on{color:#166B4E;background:#E4F5EC;border-color:#BFE3CD}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#F1F5FA;border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 10px;font-size:11px;font-weight:700}
+.chip .n{color:var(--sub);font-weight:600}
+.chip .x{cursor:pointer;color:var(--sub);background:#E4EAF0;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1}
+.chip .x:hover{background:#E24B4A;color:#fff}
+.batchbar .spacer{flex:1}
+.batchbar .mini{font:inherit;font-size:11px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:7px;padding:5px 10px;cursor:pointer}
+.batchbar .mini:hover{border-color:var(--accent);color:var(--accent)}
+.tabs{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:16px;flex-wrap:wrap}
+.tabs button{font:inherit;font-weight:700;font-size:12px;border:none;background:transparent;color:var(--sub);padding:9px 16px;cursor:pointer;border-right:1px solid var(--line2)}
+.tabs button:last-child{border-right:none}
+.tabs button.on{background:var(--accent);color:#fff}
+.dashgrid{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-bottom:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:13px;padding:16px 18px}
+.card h3{font-size:12px;font-weight:800;color:var(--sub);margin:0 0 12px;letter-spacing:.04em}
+.donutwrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.togg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.togg button{font:inherit;font-size:11px;font-weight:700;border:none;background:#fff;color:var(--sub);padding:5px 12px;cursor:pointer;border-right:1px solid var(--line2)}
+.togg button:last-child{border-right:none} .togg button.on{background:var(--accent);color:#fff}
+.kpirow{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+.kpi{background:#F7F9FC;border:1px solid var(--line2);border-radius:11px;padding:12px 14px;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}
+.kpi.mid::after{background:var(--sub)} .kpi.up::after{background:var(--ok)}
+.kpi .l{font-size:11px;color:var(--sub);font-weight:800}
+.kpi .b{font-size:22px;font-weight:800;margin-top:3px} .kpi .b .u{font-size:12px;color:var(--sub)}
+.kpi .m{font-size:11px;color:var(--sub)}
+.monthbars{display:flex;align-items:flex-end;gap:6px;height:70px;padding-top:8px}
+.monthbars .mb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end}
+.monthbars .mb .bar{width:100%;max-width:26px;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px}
+.monthbars .mb .lb{font-size:9px;color:var(--sub)}
+table{border-collapse:collapse;width:100%;font-size:12px}
+thead th{background:#F3F6F9;color:var(--sub);font-weight:800;text-align:left;padding:9px 11px;border-bottom:1.5px solid var(--line);white-space:nowrap;position:sticky;top:0;cursor:pointer}
+thead th.r{text-align:right}
+tbody td{padding:8px 11px;border-bottom:1px solid var(--line2)}
+tbody tr:hover{background:#F7F9FC}
+td.r{text-align:right}
+.catdot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:7px;vertical-align:middle}
+.catbadge{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+.pctbar{display:inline-flex;align-items:center;gap:8px;width:100%;justify-content:flex-end}
+.pctbar .track{width:90px;height:8px;border-radius:4px;background:#E7ECF1;overflow:hidden;position:relative}
+.pctbar .track i{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+.pctbar .v{font-weight:800;min-width:46px;text-align:right}
+.nm{font-weight:700} .cust{color:var(--sub);font-size:11px}
+.mz{display:inline-flex;align-items:center;gap:8px;justify-content:flex-end}
+.mbar{width:44px;height:7px;border-radius:4px;background:#E7ECF1;overflow:hidden;position:relative}
+.mbar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+.hi i{background:var(--ok)} .midb i{background:var(--mid)} .low i{background:var(--low)} .neg i{background:var(--neg)}
+.mval{font-weight:800;min-width:48px;text-align:right}
+.hi .mval{color:var(--ok)} .midb .mval{color:var(--mid)} .low .mval{color:var(--low)} .neg .mval{color:var(--neg)}
+.banner{background:#EAF3FB;border:1px solid #C7DEF3;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;font-weight:600;color:#1C4E86}
+.tablecard{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden}
+.tablehead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.tablehead h2{font-size:13px;font-weight:800;margin:0}
+.tablehead .right{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--sub)}
+.tablehead select,.filt{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-weight:700;color:var(--ink)}
+.scroll{overflow:auto;max-height:58vh}
+.ohbox{display:flex;align-items:center;gap:6px}.ohbox input{width:40px;border:1px solid var(--line);border-radius:6px;font:inherit;padding:3px 5px;text-align:right}
+.rank{display:inline-flex;align-items:center;justify-content:center;width:23px;height:23px;border-radius:50%;font-weight:800;font-size:12px;background:#EEF2F6;color:var(--sub)}
+.rank.r1{background:#FBEFCB;color:#9A7400}.rank.r2{background:#E9EDF1;color:#5A6675}.rank.r3{background:#F3E3D6;color:#955A33}
+@media(max-width:820px){.dashgrid{grid-template-columns:1fr}.imports{grid-template-columns:1fr}.kpirow{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="appbar">
+  <div class="logo">丸</div>
+  <div class="app-t">工事管理ダッシュボード<small>完成／未成 突き合わせ ・ 受注区分別 集計 ・ スプレッドシート保存(GAS)</small></div>
+  <div class="grow"></div>
+  <button class="exp" id="dl">Excel出力</button>
+</div>
+<div class="main">
+  <div class="imports">
+    <div class="slot" id="slot1"><div class="ic">📋</div>
+      <div class="t"><b>工事一覧表（未成工事）</b><span class="tag">最新に置換</span><div class="st"><span class="led" id="led1"></span><span id="src1">サンプル：62件</span></div></div>
+      <label class="pick">選択<input type="file" id="file1" accept=".xlsx,.xls"></label></div>
+    <div class="slot" id="slot2"><div class="ic">✅</div>
+      <div class="t"><b>完成工事一覧</b><span class="tag">月次で積み上げ</span><div class="st"><span class="led" id="led2"></span><span id="src2">累計 —</span></div></div>
+      <label class="pick">追加取込<input type="file" id="file2" accept=".xlsx,.xls"></label></div>
+  </div>
+  <div class="batchbar" id="batchbar"></div>
+
+  <div class="tabs" id="tabs"></div>
+  <div id="view"></div>
+</div>
+<script>
+const SAMPLE={"cases": [{"section": "①商社工事", "code": "405002-00", "customer": "ラトナエンジニアリング合同会社", "name": "清水区浜田町造成工事", "person": "鈴木 悠仁", "pstart": "2025-08-04", "pend": "2025-09-15", "order": 478, "baseRate": -1, "marginCached": -0.87}, {"section": "①商社工事", "code": "405003-00", "customer": "㈱黒﨑", "name": "混和剤投入作業 業務委託（R7.7～R8.6）", "person": "青島 秀和", "pstart": "2025-07-01", "pend": "2026-06-30", "order": 0, "baseRate": 0.25, "marginCached": 0.38}, {"section": "①商社工事", "code": "405036-00", "customer": "㈱黒﨑", "name": "川崎工業㈱ 菊川新工場 土間木片除去作業", "person": "青島 秀和", "pstart": null, "pend": null, "order": null, "baseRate": -1, "marginCached": null}, {"section": "①商社工事", "code": "405041-00", "customer": "㈱オサヨシ", "name": "田子重神戸店客用駐車場増設工事", "person": "小林 徹也", "pstart": "2026-01-05", "pend": "2026-04-15", "order": 5000, "baseRate": 0.006, "marginCached": 0.136}, {"section": "①商社工事", "code": "405042-00", "customer": "㈱オサヨシ", "name": "田子重西焼津店駐車場上屋設置工事", "person": "山崎 大介", "pstart": "2026-01-07", "pend": "2026-05-15", "order": 1095, "baseRate": -0.0126, "marginCached": 0.1174}, {"section": "①商社工事", "code": null, "customer": "㈱オサヨシ", "name": "田子重瀬名店客用駐車場増設工事", "person": "山崎 大介", "pstart": "2026-01-20", "pend": "2026-04-15", "order": 1950, "baseRate": -0.0172, "marginCached": 0.11280000000000001}, {"section": "①商社工事", "code": "405063-00", "customer": "コスモ建設㈱", "name": "ﾎﾝﾀﾞｶｰｽﾞ中央静岡 藤枝築地店 ｺﾝｸﾘｰﾄ工", "person": "益田 桂志", "pstart": "2026-04-01", "pend": "2026-06-30", "order": 230, "baseRate": 0, "marginCached": 0.13}, {"section": "①商社工事", "code": "405047-00", "customer": "コスモ建設㈱", "name": "ﾎﾝﾀﾞｶｰｽﾞ中央静岡藤枝築地店 土工事", "person": "益田 桂志", "pstart": "2026-04-01", "pend": "2026-05-30", "order": 840, "baseRate": 0, "marginCached": 0.13}, {"section": "①商社工事", "code": "405050-00", "customer": "㈱原崎鉄工所", "name": "倉庫新築工事", "person": "小林 大介", "pstart": "2026-01-21", "pend": "2026-04-30", "order": 1220, "baseRate": 0.0076, "marginCached": 0.1376}, {"section": "①商社工事", "code": "405055-00", "customer": "医療法人社団 駿河西病院", "name": "駿河西病院廊下床塩ビシート張替工事", "person": "鈴木 悠仁", "pstart": "2026-02-16", "pend": "2026-03-06", "order": 9.8, "baseRate": 0.0333, "marginCached": 0.1633}, {"section": "①商社工事", "code": "405074-00", "customer": "医療法人社団 駿河西病院", "name": "焼津ケアセンター壁紙・壁修繕・点検口設置", "person": "鈴木 悠仁", "pstart": "2026-04-20", "pend": "2027-05-31", "order": 25.8, "baseRate": 0.1, "marginCached": 0.23}, {"section": "①商社工事", "code": "405078-00", "customer": "医療法人社団 駿河西病院", "name": "カラスの巣撤去工事", "person": "鈴木 悠仁", "pstart": "2026-04-25", "pend": "2026-04-25", "order": 7, "baseRate": 0.1, "marginCached": 0.23}, {"section": "①商社工事", "code": "405062-00", "customer": "㈱原小組", "name": "R7県単独林道(舗装)林道八高山線舗装GR施工", "person": "鈴木 悠仁", "pstart": "2026-03-04", "pend": "2026-03-06", "order": 27.7, "baseRate": 0.01, "marginCached": 0.14}, {"section": "①商社工事", "code": null, "customer": "島田市役所", "name": "島田消防署初倉出張所修繕費", "person": "山崎 大介", "pstart": "2026-04-01", "pend": "2026-05-31", "order": 3, "baseRate": 0.1, "marginCached": 0.23}, {"section": "①商社工事", "code": null, "customer": "㈱中林建設", "name": "見付分岐線No.4敷地整備工事", "person": "中川 龍之介", "pstart": "2026-04-01", "pend": "2026-05-29", "order": 240, "baseRate": 0.02, "marginCached": 0.15}, {"section": "①商社工事", "code": null, "customer": "㈱中林建設", "name": "川根秋葉線No.9～No.14工事用道路補修工事", "person": "中川 龍之介", "pstart": "2026-03-30", "pend": "2026-05-29", "order": 240, "baseRate": 0.02, "marginCached": 0.15}, {"section": "①商社工事", "code": null, "customer": "㈱ラックランド 静岡営業所", "name": "ドコモショップ袋井店駐車場区画線設置工事", "person": "青島 秀和", "pstart": "2026-04-14", "pend": "2026-04-14", "order": 18.5, "baseRate": 0.02, "marginCached": 0.15}, {"section": "①商社工事", "code": null, "customer": "㈲藤枝生コン", "name": "水槽防錆補強塗装（染めQ）工事", "person": "松井 隆", "pstart": "2026-04-17", "pend": "2026-05-10", "order": 125, "baseRate": -0.04, "marginCached": 0.09}, {"section": "①商社工事", "code": null, "customer": "大河原建設㈱", "name": "石垣内科医院仮設駐車場整備", "person": "山崎 大介", "pstart": "2026-04-21", "pend": "2026-04-30", "order": 85, "baseRate": 0.03, "marginCached": 0.16}, {"section": "①商社工事", "code": null, "customer": "杉江電設㈱", "name": "田子重神戸店客用駐車場造成工事に伴う追加", "person": "小林 徹也", "pstart": "2026-04-01", "pend": "2026-04-30", "order": 30, "baseRate": 0.03, "marginCached": 0.16}, {"section": "①商社工事", "code": null, "customer": "杉江電設㈱", "name": "田子重瀬名店客用駐車場拡張工事に伴う追加", "person": "中川 龍之介", "pstart": "2026-04-01", "pend": "2026-04-30", "order": 15, "baseRate": 0.03, "marginCached": 0.16}, {"section": "②土木官庁", "code": "401023-00", "customer": "静岡県島田土木事務所", "name": "R7 島田吉田線(雪氷対策)業務委託(第2工区)", "person": "中川 龍之介", "pstart": "2025-11-25", "pend": "2026-05-29", "order": 35, "baseRate": 0.1, "marginCached": 0.23}, {"section": "②土木官庁", "code": "401025-00", "customer": "静岡県島田土木事務所", "name": "R7 吉田大東線道路改築工事（舗装工）", "person": "松島 慎吾", "pstart": "2025-12-23", "pend": "2026-03-23", "order": 5358, "baseRate": 0.07, "marginCached": 0.2}, {"section": "③土木下請", "code": "392004-00", "customer": "大河原建設㈱", "name": "R5 伊久美川災害復旧", "person": "前嶋 翔", "pstart": "2024-10-28", "pend": "2025-06-20", "order": 3400, "baseRate": 0, "marginCached": 0.13}, {"section": "③土木下請", "code": "404005-00", "customer": "㈱中村組", "name": "たびら眼科新築工事", "person": "中川 龍之介", "pstart": "2025-10-20", "pend": "2026-04-20", "order": 2950, "baseRate": 0.02, "marginCached": 0.15}, {"section": "③土木下請", "code": "404006-00", "customer": "大河原建設㈱", "name": "TRIAL浜松葵西店外構", "person": "前嶋 翔", "pstart": "2025-10-20", "pend": "2026-04-30", "order": 7400, "baseRate": 0.02, "marginCached": 0.15}, {"section": "③土木下請", "code": "403009-00", "customer": "あいおいニッセイ同和損保", "name": "大井川堤防法面保護作業", "person": "三浦 剛", "pstart": null, "pend": null, "order": 23, "baseRate": 0.15, "marginCached": 0.28}, {"section": "③土木下請", "code": "403015-00", "customer": "東京海上日動火災保険㈱", "name": "大井川左岸法面復旧工事", "person": "吉田 辰弥", "pstart": "2026-05-01", "pend": "2026-05-31", "order": 148, "baseRate": 0.15, "marginCached": 0.28}, {"section": "③土木下請", "code": null, "customer": "日産レンタカー静岡㈱", "name": "静岡空港給油施設ガラス取替", "person": "尾白 啓太", "pstart": "2026-04-01", "pend": "2026-04-30", "order": 16.9, "baseRate": 0.1, "marginCached": 0.23}, {"section": "⑤優先(繰越)", "code": "401019-00", "customer": "静岡県島田土木事務所", "name": "R7 二級河川東光寺谷川総合流域防災対策工", "person": "福代 紘大", "pstart": "2025-11-06", "pend": "2026-03-13", "order": 3920, "baseRate": 0.1, "marginCached": 0.23}, {"section": "⑤優先(繰越)", "code": "401028-00", "customer": "静岡県島田土木事務所", "name": "R7静岡空港線7年災害復旧(7年災査定第40号)", "person": "後藤 長武", "pstart": "2026-01-29", "pend": "2026-06-25", "order": 950, "baseRate": 0.03, "marginCached": 0.16}, {"section": "⑤優先(繰越)", "code": "401021-00", "customer": "島田市役所", "name": "R7 谷口中河線改良工事", "person": "三浦 剛", "pstart": "2025-11-18", "pend": "2026-03-19", "order": 5975, "baseRate": 0, "marginCached": 0.13}, {"section": "⑤優先(繰越)", "code": "401005-00", "customer": "島田市役所", "name": "R7 色尾大柳線改良工事", "person": "又平 清悟", "pstart": "2025-07-29", "pend": "2026-03-19", "order": 5150, "baseRate": 0, "marginCached": 0.13}, {"section": "⑤優先(繰越)", "code": "401031-00", "customer": "中部地方整備局 静岡河川事務所", "name": "R7 大井川維持修繕工事", "person": "吉田 辰弥", "pstart": "2026-04-01", "pend": "2027-03-31", "order": 4150, "baseRate": 0.15, "marginCached": 0.28}, {"section": "⑤優先(繰越)", "code": "394005-00", "customer": "大河原建設㈱", "name": "横浜冷凍大井川第2物流センター造成外構", "person": "三浦 剛", "pstart": "2025-01-10", "pend": "2027-10-31", "order": 11500, "baseRate": 0.042, "marginCached": 0.17200000000000001}, {"section": "⑤優先(繰越)", "code": "402001-00", "customer": "鹿島道路㈱東京支店", "name": "首都圏中央連絡自動車坂東常総舗装工事", "person": "山城 康輔", "pstart": "2025-07-01", "pend": "2027-03-27", "order": 7070, "baseRate": 0.061, "marginCached": 0.191}, {"section": "⑤優先(繰越)", "code": "402008-00", "customer": "鹿島道路㈱中部支店", "name": "特定港湾施設整備舗装工事", "person": "木内 康滋", "pstart": "2026-05-11", "pend": "2026-09-30", "order": 1220, "baseRate": 0.1, "marginCached": 0.23}, {"section": "⑤優先(繰越)", "code": "392006-00", "customer": "鹿島道路㈱関東支店", "name": "東関東自動車道 鉾田舗装工事", "person": "青木 紀雄", "pstart": "2025-04-07", "pend": "2026-03-31", "order": 2800, "baseRate": 0.135, "marginCached": 0.265}, {"section": "⑤優先(繰越)", "code": "402006-00", "customer": "東亜道路工業㈱静岡営業所", "name": "R7 1号清水立体庵原地区舗装工事", "person": "漆畑 武士", "pstart": "2026-02-02", "pend": "2026-03-26", "order": 1940, "baseRate": 0.03, "marginCached": 0.16}, {"section": "⑤優先(繰越)", "code": "385039-00", "customer": "日本道路㈱ 九州支店", "name": "馬毛島(R4)駐機場舗装等工事(その2)", "person": "山崎 大介", "pstart": "2024-04-01", "pend": "2026-03-31", "order": 7970, "baseRate": 0.083, "marginCached": 0.21300000000000002}, {"section": "⑤優先(繰越)", "code": "395023-00", "customer": "ペパーレット㈱", "name": "ペパーレット島田工場 排水溝 蓋布設工事", "person": "山崎 大介", "pstart": "2024-12-12", "pend": "2025-06-11", "order": 464, "baseRate": 0.199, "marginCached": 0.329}, {"section": "⑤優先(繰越)", "code": "384001-00", "customer": "㈱特種東海フォレスト", "name": "R5 林道東俣線改良工事（フォレストリニア", "person": "山崎 大介", "pstart": "2023-07-01", "pend": "2025-04-30", "order": null, "baseRate": 0.03, "marginCached": 0.16}, {"section": "⑤優先(繰越)", "code": "405075-00", "customer": "㈱特種東海フォレスト", "name": "R7 大井川堤防維持管理修繕工事", "person": "鈴木 悠仁", "pstart": "2026-05-11", "pend": "2027-03-24", "order": 1915, "baseRate": 0.02, "marginCached": 0.15}, {"section": "⑤優先(繰越)", "code": "405048-00", "customer": "コスモ建設㈱", "name": "ﾎﾝﾀﾞｶｰｽﾞ中央静岡 藤枝築地店 外構工事", "person": "益田 桂志", "pstart": "2026-01-26", "pend": "2026-08-30", "order": 4100, "baseRate": 0.0017, "marginCached": 0.1317}, {"section": "⑤優先(繰越)", "code": "405066-00", "customer": "SEKIWA 石田和利", "name": "藤枝市岡部町内谷造成工事", "person": "山崎 大介", "pstart": "2026-02-25", "pend": "2026-06-30", "order": 950, "baseRate": 0.01, "marginCached": 0.14}, {"section": "⑤優先(繰越)", "code": "405069-00", "customer": "㈱小糸製作所", "name": "A駐車場嵩上げ整備工事", "person": "山崎 大介", "pstart": "2026-02-26", "pend": "2026-08-31", "order": 8700, "baseRate": 0.02, "marginCached": 0.15}, {"section": "⑤優先(繰越)", "code": "405070-00", "customer": "㈱小糸製作所", "name": "榛原工場 A駐車場嵩上げ整備に伴う撤去工事", "person": "山崎 大介", "pstart": "2025-03-20", "pend": "2026-08-31", "order": 1100, "baseRate": 0.02, "marginCached": 0.15}, {"section": "⑤優先(繰越)", "code": "405071-00", "customer": "㈱中村組", "name": "DPL静岡袋井新築工事", "person": "赤堀 竜輝", "pstart": "2026-04-06", "pend": "2027-01-31", "order": 2000, "baseRate": 0.02, "marginCached": 0.15}, {"section": "⑤優先(繰越)", "code": "405072-00", "customer": "㈱TOKAI 建設不動産本部 事業開発推進部", "name": "R8 TOKAI太陽光発電施設除草工（天竜地区）", "person": "鈴木 悠仁", "pstart": "2026-05-01", "pend": "2026-12-31", "order": 200, "baseRate": 0.02, "marginCached": 0.15}, {"section": "⑤優先(繰越)", "code": "405073-00", "customer": "㈱TOKAI 建設不動産本部 事業開発推進部", "name": "R8 TOKAI裾野・市場平太陽光発電所除草工事", "person": "鈴木 悠仁", "pstart": "2026-05-01", "pend": "2026-12-31", "order": 135, "baseRate": 0.02, "marginCached": 0.15}, {"section": "⑤優先(繰越)", "code": "405076-00", "customer": "㈱アクト建設", "name": "イリカド外構・雨水排水改修工事", "person": "益田 桂志", "pstart": "2026-04-01", "pend": "2026-08-31", "order": 6830, "baseRate": 0.01, "marginCached": 0.14}, {"section": "⑤優先(繰越)", "code": "405079-00", "customer": "東京共同会計事務所", "name": "R8 TOKAIトヨキン石野太陽光発電施設除草工", "person": "鈴木 悠仁", "pstart": "2026-10-01", "pend": "2027-03-31", "order": 90, "baseRate": 0.02, "marginCached": 0.15}, {"section": "⑤優先(繰越)", "code": "403010-00", "customer": "富士山静岡空港㈱", "name": "静岡空港土木施設維持（3年）その1", "person": "尾白 啓太", "pstart": "2026-04-01", "pend": "2027-03-31", "order": 1850, "baseRate": 0.1, "marginCached": 0.23}, {"section": "⑤優先(繰越)", "code": "403013-00", "customer": "富士山静岡空港㈱", "name": "2026年度 空港基本施設附帯施設等修繕業務", "person": "尾白 啓太", "pstart": "2026-04-15", "pend": "2027-03-20", "order": 0, "baseRate": 0.1, "marginCached": 0.23}, {"section": "⑤優先(繰越)", "code": "405052-00", "customer": "静岡県知事", "name": "R7 静岡SA倉庫設置のための基礎工事", "person": "鈴木 悠仁", "pstart": "2025-12-22", "pend": "2026-03-13", "order": 113, "baseRate": 0, "marginCached": 0.13}, {"section": "⑤優先(繰越)", "code": "405084-00", "customer": "戸塚建設㈱", "name": "R150 除草", "person": "益田 桂志", "pstart": "2026-06-15", "pend": "2026-08-11", "order": 240, "baseRate": 0.03, "marginCached": 0.16}, {"section": "⑤優先(繰越)", "code": "405085-00", "customer": "中部カレット", "name": "ガードパイプ", "person": "鈴木 悠仁", "pstart": "2026-06-01", "pend": "2026-06-30", "order": 19.5, "baseRate": 0.05, "marginCached": 0.18}, {"section": "⑤優先(繰越)", "code": "405087-00", "customer": "焼津ケアセンター", "name": "焼津ケア 浴槽モルタル", "person": "鈴木 悠仁", "pstart": "2026-06-02", "pend": "2026-07-01", "order": 5.4, "baseRate": 0.15, "marginCached": 0.28}, {"section": "⑤優先(繰越)", "code": "401035-00", "customer": "島田市役所", "name": "煎餅屋橋", "person": "福代 紘大", "pstart": "2026-05-22", "pend": "2026-06-30", "order": 90, "baseRate": 0.15, "marginCached": 0.28}, {"section": "⑤優先(繰越)", "code": "405086-00", "customer": "増田運送㈱", "name": "ペパー 支柱補修", "person": "山崎 大介", "pstart": "2026-05-01", "pend": "2026-05-30", "order": 9, "baseRate": 0.1, "marginCached": 0.23}, {"section": "⑤優先(繰越)", "code": "405088-00", "customer": "駿河西", "name": "水漏れ補修", "person": "鈴木 悠仁", "pstart": "2026-06-01", "pend": "2026-06-30", "order": 22, "baseRate": 0.1, "marginCached": 0.23}, {"section": "⑤優先(繰越)", "code": null, "customer": "大河原建設㈱", "name": "TRIAL浜松葵西店 駐車場整備", "person": "", "pstart": "2026-05-19", "pend": "2026-06-30", "order": 1050, "baseRate": 0.03, "marginCached": 0.16}], "completed": [{"customer": "静岡県島田土木事務所", "name": "R6 東光寺谷川総合流域防災対策（護岸工）", "category": "官公庁発注工事", "person": "吉田 辰弥", "done": "2025-07-31", "revenue": 36900000, "profit": 10470735}, {"customer": "島田市役所", "name": "R6 色尾大柳線改良工事", "category": "官公庁発注工事", "person": "菊地 亮太", "done": "2025-07-31", "revenue": 32540000, "profit": 5971372}, {"customer": "島田市役所", "name": "R7 下湯日地内側溝設置工事", "category": "官公庁発注工事", "person": "山城 康輔", "done": "2025-07-31", "revenue": 900000, "profit": 555907}, {"customer": "島田市役所", "name": "R7 色尾東27号線道路舗装工事", "category": "官公庁発注工事", "person": "山城 康輔", "done": "2025-07-31", "revenue": 900000, "profit": 250000}, {"customer": "大河原建設㈱", "name": "横浜冷凍物流センター舗装改修", "category": "民間下請工事", "person": "三浦 剛", "done": "2025-07-31", "revenue": 27600000, "profit": 6196400}, {"customer": "静岡県島田土木事務所", "name": "R6島田大井川線道路維持業務委託(第1工区）", "category": "官公庁発注工事", "person": "中川 龍之介", "done": "2025-08-31", "revenue": 9920568, "profit": 2790488}, {"customer": "静岡県島田土木事務所", "name": "R6 473号舗装修繕工事(切削オーバーレイ工)", "category": "官公庁発注工事", "person": "石田 優成", "done": "2025-08-31", "revenue": 13636364, "profit": 2126741}, {"customer": "㈱中村組", "name": "HMK外構工事", "category": "民間下請工事", "person": "松島 慎吾", "done": "2025-08-31", "revenue": 136000000, "profit": 4332410}, {"customer": "㈱中村組", "name": "HMK仮設工事", "category": "民間下請工事", "person": "松島 慎吾", "done": "2025-08-31", "revenue": 1700000, "profit": 268876}, {"customer": "㈱中村組", "name": "HMK建築外構工事", "category": "民間下請工事", "person": "松島 慎吾", "done": "2025-08-31", "revenue": 4300000, "profit": 627597}, {"customer": "志太榛原農林事務所", "name": "R6 切山地区区画整理1工事", "category": "官公庁発注工事", "person": "福代 紘大", "done": "2025-10-31", "revenue": 67700000, "profit": 23924065}, {"customer": "島田市役所", "name": "道第4号 原ノ平吹木線崩土除去業務", "category": "官公庁発注工事", "person": "駒井 聡", "done": "2025-10-31", "revenue": 450000, "profit": 330051}, {"customer": "島田市役所", "name": "道第16号 吹木線路肩補強業務", "category": "官公庁発注工事", "person": "加藤 一樹", "done": "2025-10-31", "revenue": 790000, "profit": 600200}, {"customer": "島田市役所", "name": "R7 市道原ノ平吹木線除草作業", "category": "官公庁発注工事", "person": "駒井 聡", "done": "2025-10-31", "revenue": 390000, "profit": 215802}, {"customer": "不二運輸㈱", "name": "富士山静岡空港ガードレール取替", "category": "民間元請工事", "person": "尾白 啓太", "done": "2025-10-31", "revenue": 182500, "profit": 64800}, {"customer": "静岡県島田土木事務所", "name": "R6 吉田大東線道路改築工事（第1調整池整備", "category": "官公庁発注工事", "person": "前嶋 翔", "done": "2025-11-30", "revenue": 44320000, "profit": 14083213}, {"customer": "萩原茂雄", "name": "萩原邸外構工事", "category": "民間元請工事", "person": "又平 清悟", "done": "2025-11-30", "revenue": 12500000, "profit": 92226}, {"customer": "㈱中村組", "name": "浜松興運㈱白鳥倉庫新築工事", "category": "民間下請工事", "person": "松島 慎吾", "done": "2025-12-31", "revenue": 19181000, "profit": 964420}, {"customer": "㈱中村組", "name": "(仮)小澤土木1年点検補修", "category": "民間下請工事", "person": "後藤 長武", "done": "2025-12-31", "revenue": 1570000, "profit": -371553}, {"customer": "㈱中村組", "name": "HMK造成工事瑕疵（追加工事）", "category": "民間下請工事", "person": "後藤 長武", "done": "2025-12-31", "revenue": 540000, "profit": -370620}, {"customer": "島田市役所", "name": "R7 旧初大柳線ほか2路線送水管布設替工事", "category": "官公庁発注工事", "person": "中川 龍之介", "done": "2026-01-31", "revenue": 41710000, "profit": 9058761}, {"customer": "富士山静岡空港㈱", "name": "空港給油設備修繕工事", "category": "民間元請工事", "person": "尾白 啓太", "done": "2026-01-31", "revenue": 140000, "profit": 50000}, {"customer": "富士山静岡空港㈱", "name": "2025年度 S3急流工改修工事（その3）", "category": "民間元請工事", "person": "尾白 啓太", "done": "2026-01-31", "revenue": 3700000, "profit": 1064036}, {"customer": "㈱中村組", "name": "松若1年点検補修工事", "category": "民間下請工事", "person": "後藤 長武", "done": "2026-01-31", "revenue": 170000, "profit": 73529}, {"customer": "静岡県島田土木事務所", "name": "R7二級河川湯日川県土強靭化対策(河道掘削)", "category": "官公庁発注工事", "person": "駒井 聡", "done": "2026-02-28", "revenue": 22045454, "profit": 4626178}, {"customer": "島田市役所", "name": "R7 阪本地区舗装復旧工事", "category": "官公庁発注工事", "person": "又平 清悟", "done": "2026-02-28", "revenue": 800000, "profit": 358000}, {"customer": "鹿島道路㈱中部支店", "name": "大井川右岸堤防（17.2KP付近）芝復旧工事", "category": "民間元請工事", "person": "三浦 剛", "done": "2026-02-28", "revenue": 10172500, "profit": 2108486}, {"customer": "大有建設㈱", "name": "R7 三遠道路新城地区舗装工事", "category": "官庁下請工事", "person": "後藤 長武", "done": "2026-02-28", "revenue": 15093900, "profit": 2881408}, {"customer": "芝田重機㈲", "name": "静岡牧之原オフィス外構修繕工事", "category": "民間下請工事", "person": "三浦 剛", "done": "2026-02-28", "revenue": 240000, "profit": 157500}, {"customer": "静岡県知事", "name": "R7 静岡空港空港周囲部（小規模施設修繕）", "category": "官公庁発注工事", "person": "大石 夕貴", "done": "2026-03-31", "revenue": 4572727, "profit": 2509421}, {"customer": "静岡県島田土木事務所", "name": "R7 細江金谷線ほか道路維持（道路除草）", "category": "官公庁発注工事", "person": "ｴﾘﾄ ｻﾞｷ ｱﾙｼﾞｮｼｬ", "done": "2026-03-31", "revenue": 8730000, "profit": 3134280}, {"customer": "静岡県知事", "name": "R7 静岡空港施設整備工事(場周道路補修工)", "category": "官公庁発注工事", "person": "赤堀 竜輝", "done": "2026-03-31", "revenue": 26030000, "profit": 5548618}, {"customer": "静岡県島田土木事務所", "name": "R7 吉田大東線道路改築工事(第2調整池整備", "category": "官公庁発注工事", "person": "松島 慎吾", "done": "2026-03-31", "revenue": 65500000, "profit": 18516941}, {"customer": "志太榛原農林事務所", "name": "R7 切山地区舗装1工事", "category": "官公庁発注工事", "person": "青木 藍華", "done": "2026-03-31", "revenue": 21088455, "profit": 5527271}, {"customer": "静岡県知事", "name": "R7静岡空港現年災害空港施設復旧(斜面対策)", "category": "官公庁発注工事", "person": "福代 紘大", "done": "2026-03-31", "revenue": 9000000, "profit": 4348759}, {"customer": "島田市役所", "name": "R7 谷口中河線配水管布設工事", "category": "官公庁発注工事", "person": "後藤 長武", "done": "2026-03-31", "revenue": 9310000, "profit": 2004509}, {"customer": "島田市役所", "name": "R7 色尾東27号線道路舗装工事その2", "category": "官公庁発注工事", "person": "岡野 さやか", "done": "2026-03-31", "revenue": 900000, "profit": 161280}, {"customer": "富士山静岡空港㈱", "name": "静岡空港土木施設維持（3年）その3", "category": "民間元請工事", "person": "尾白 啓太", "done": "2026-03-31", "revenue": 21366000, "profit": 3410501}, {"customer": "富士山静岡空港㈱", "name": "2025年度 空港基本施設付帯施設等修繕業務", "category": "民間元請工事", "person": "尾白 啓太", "done": "2026-03-31", "revenue": 478000, "profit": 378092}, {"customer": "富士山静岡空港㈱", "name": "2025年度場周・保安道路標識再塗装", "category": "民間元請工事", "person": "尾白 啓太", "done": "2026-03-31", "revenue": 1350000, "profit": 414000}, {"customer": "富士山静岡空港㈱", "name": "2025年度 B1盛土復旧工事", "category": "民間元請工事", "person": "尾白 啓太", "done": "2026-03-31", "revenue": 17500000, "profit": 6723005}, {"customer": "㈱特種東海フォレスト", "name": "R7 みどり幼稚園跡地公園整備工事", "category": "官庁下請工事", "person": "中川 龍之介", "done": "2026-03-31", "revenue": 8900000, "profit": 1390102}, {"customer": "㈱庭守あさくら", "name": "モレックス駐車場造成工事", "category": "民間下請工事", "person": "中川 龍之介", "done": "2026-03-31", "revenue": 47980000, "profit": 7752038}, {"customer": "中部地方整備局 静岡河川事務所", "name": "R6 大井川維持修繕工事", "category": "官公庁発注工事", "person": "三浦 剛", "done": "2026-04-30", "revenue": 45143000, "profit": 13590313}, {"customer": "静岡県知事", "name": "R7静岡空港過年災害空港施設復旧(斜面対策)", "category": "官公庁発注工事", "person": "赤堀 竜輝", "done": "2026-04-30", "revenue": 31818182, "profit": 7910440}, {"customer": "静岡県島田土木事務所", "name": "R7吉田大東線道路改築工事（道路工）", "category": "官公庁発注工事", "person": "吉田 辰弥", "done": "2026-04-30", "revenue": 108680000, "profit": 35553966}, {"customer": "静岡県知事", "name": "R7 静岡空港周囲部強靭化対策(斜面対策工)", "category": "官公庁発注工事", "person": "駒井 聡", "done": "2026-04-30", "revenue": 22727272, "profit": 8527214}, {"customer": "富士山静岡空港㈱", "name": "2025年度 Ｓ3急流工改修工事", "category": "民間元請工事", "person": "尾白 啓太", "done": "2026-04-30", "revenue": 36480000, "profit": 11158370}, {"customer": "富士山静岡空港㈱", "name": "2025年度 S3急流工改修工事（その2）", "category": "民間元請工事", "person": "尾白 啓太", "done": "2026-04-30", "revenue": 46400000, "profit": 11470874}, {"customer": "富士山静岡空港㈱", "name": "2025年度 S3調節池土砂撤去工", "category": "民間元請工事", "person": "尾白 啓太", "done": "2026-04-30", "revenue": 49000000, "profit": 13736975}, {"customer": "㈲ダストパン", "name": "藁科宅 グレーチング修繕工事", "category": "民間元請工事", "person": "松島 慎吾", "done": "2026-04-30", "revenue": 100000, "profit": 52120}, {"customer": "亀山建設㈱", "name": "R6 潮薮田道路建設工事", "category": "官庁下請工事", "person": "大石 夕貴", "done": "2026-04-30", "revenue": 3416250, "profit": 1228487}, {"customer": "大有建設㈱", "name": "東名高速道路 浜松管内舗装補修工事（2025", "category": "官庁下請工事", "person": "大石 夕貴", "done": "2026-04-30", "revenue": 15265500, "profit": 5134767}, {"customer": "㈱川崎建設", "name": "R7.150号ほか道路維持(小規模)業務委託", "category": "官庁下請工事", "person": "漆畑 武士", "done": "2026-04-30", "revenue": 1084000, "profit": 338630}, {"customer": "静岡トヨタ自動車㈱", "name": "静岡ﾄﾖﾀ自動車㈱牧之原物流ｾﾝﾀｰｶﾞﾚｰｼﾞ設置", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-07-31", "revenue": 980000, "profit": 84368}, {"customer": "駿河西病院様 樹木剪定作業", "name": "医療法人社団 綾和会 焼津ケアセンター", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-07-31", "revenue": 160000, "profit": 29000}, {"customer": "㈱庭守あさくら", "name": "（仮称）初倉福祉施設造成工事", "category": "民間下請工事", "person": "山崎 大介", "done": "2025-07-31", "revenue": 12000000, "profit": 3270000}, {"customer": "医療法人社団 駿河西病院", "name": "駿河西病院様 鳥の巣撤去作業", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-08-31", "revenue": 70000, "profit": 31092}, {"customer": "医療法人社団 綾和会 焼津ケアセンター", "name": "駿河西病院様 屋上防鳥ネット取付工事", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-08-31", "revenue": 145000, "profit": 91162}, {"customer": "医療法人社団 駿河西病院", "name": "REHOPE駿河西様 壁塗装工事", "category": "その他", "person": "鈴木 悠仁", "done": "2025-08-31", "revenue": 220000, "profit": 49000}, {"customer": "㈱特種東海フォレスト", "name": "R7 大井川堤防草刈業務委託（島田）", "category": "官庁下請工事", "person": "鈴木 悠仁", "done": "2025-08-31", "revenue": 164000, "profit": 55000}, {"customer": "南部建設㈱", "name": "スズキ牧之原", "category": "民間下請工事", "person": "益田 桂志", "done": "2025-08-31", "revenue": 110400, "profit": 4400}, {"customer": "シミックCMO㈱", "name": "シミックCMO㈱納涼祭2025", "category": "民間元請工事", "person": "川井 大輔", "done": "2025-09-30", "revenue": 2500000, "profit": 523690}, {"customer": "太陽建機レンタル㈱清水支店", "name": "清水区浜田町造成工事 隣地側フェンス交換", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-09-30", "revenue": 690000, "profit": 264000}, {"customer": "㈱提坂工務店", "name": "中田様邸 境界ブロック工事", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-09-30", "revenue": 1240000, "profit": 196000}, {"customer": "杉山知太郎（㈱橘）", "name": "吉川ビル給水管改修工事", "category": "民間下請工事", "person": "川井 大輔", "done": "2025-09-30", "revenue": 1100000, "profit": 130000}, {"customer": "東京共同会計事務所", "name": "R7 TOKAIトヨキン石野太陽光発電施設除草工", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-10-31", "revenue": 900000, "profit": 100000}, {"customer": "学校法人六合学園 六合幼稚園", "name": "六合幼稚園プール解体工事", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-10-31", "revenue": 5000000, "profit": 1063293}, {"customer": "医療法人社団 綾和会 焼津ケアセンター", "name": "焼津ケアセンター様 入口段差修繕工事", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-10-31", "revenue": 55000, "profit": 25980}, {"customer": "㈱特種東海フォレスト", "name": "R7大井川堤防市道占用部草刈業務委託(島田)", "category": "官庁下請工事", "person": "鈴木 悠仁", "done": "2025-10-31", "revenue": 164000, "profit": 55000}, {"customer": "戸塚建設㈱", "name": "R7 150号ほか道路維持(道路除草)(第6-1工)", "category": "民間下請工事", "person": "益田 桂志", "done": "2025-10-31", "revenue": 2450000, "profit": 521795}, {"customer": "南部建設㈱", "name": "岡崎市戸崎町物販店舗新築工事に伴う外構工", "category": "民間下請工事", "person": "益田 桂志", "done": "2025-10-31", "revenue": 24630000, "profit": 2650000}, {"customer": "南部建設㈱", "name": "遠州トラック㈱駐車場造成工事に伴う緑地帯", "category": "民間下請工事", "person": "益田 桂志", "done": "2025-10-31", "revenue": 1600000, "profit": 240000}, {"customer": "南部建設㈱", "name": "バースデイ東新田店新築工事", "category": "民間下請工事", "person": "益田 桂志", "done": "2025-10-31", "revenue": 297000, "profit": 11000}, {"customer": "造景屋 沙羅乃樹㈱", "name": "焼津市トラストデント焼津店 舗装工事", "category": "民間下請工事", "person": "鈴木 悠仁", "done": "2025-10-31", "revenue": 426000, "profit": 56000}, {"customer": "医療法人社団 駿河西病院", "name": "REHOPE駿河西病院様 屋上防水工事", "category": "民間下請工事", "person": "鈴木 悠仁", "done": "2025-10-31", "revenue": 265000, "profit": 40500}, {"customer": "医療法人社団 駿河西病院", "name": "REHOPE駿河西病院様 3F天井補修工事", "category": "民間下請工事", "person": "鈴木 悠仁", "done": "2025-10-31", "revenue": 150000, "profit": 73000}, {"customer": "島田市役所", "name": "R7 元島田公園テーブルベンチ修繕工事", "category": "官公庁発注工事", "person": "松井 隆", "done": "2025-11-30", "revenue": 860000, "profit": 207015}, {"customer": "㈱特種東海フォレスト", "name": "R7 大井川堤防敷除草業務委託（吉田）", "category": "官庁下請工事", "person": "鈴木 悠仁", "done": "2025-11-30", "revenue": 1050000, "profit": 311000}, {"customer": "南部建設㈱", "name": "(仮称)岡崎市戸崎町物販店舗新築工事", "category": "民間下請工事", "person": "益田 桂志", "done": "2025-11-30", "revenue": 7120000, "profit": 771699}, {"customer": "南部建設㈱", "name": "マクドナルド掛川大池店外構工事", "category": "民間下請工事", "person": "益田 桂志", "done": "2025-11-30", "revenue": 1050000, "profit": 138800}, {"customer": "南部建設㈱", "name": "（仮称）静岡掛川物流施設新築工事", "category": "民間下請工事", "person": "益田 桂志", "done": "2025-11-30", "revenue": 4750000, "profit": 650000}, {"customer": "静岡県知事", "name": "R7 県内遺跡発掘調査に係る重機借上げ", "category": "官公庁発注工事", "person": "川井 大輔", "done": "2025-12-31", "revenue": 75000, "profit": 74100}, {"customer": "静岡県知事", "name": "R7県内遺跡発掘調査に係る重機借上げ(平島)", "category": "官公庁発注工事", "person": "川井 大輔", "done": "2025-12-31", "revenue": 82000, "profit": 70080}, {"customer": "伊藤園ティーファクトリー㈱", "name": "伊藤園ﾃｨｰﾌｧｸﾄﾘｰ㈱倉庫増築工事 ﾎﾞｰﾘﾝｸﾞ調", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-11-30", "revenue": 1890000, "profit": 250000}, {"customer": "阿部由美子", "name": "六合幼稚園共同駐車場バリカー交換工事", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-11-30", "revenue": 70000, "profit": 44405}, {"customer": "医療法人社団 駿河西病院", "name": "焼津ケアセンター様 3F天井補修工事", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2025-12-31", "revenue": 195000, "profit": 16000}, {"customer": "㈱特種東海フォレスト", "name": "R6大井川堤防維持管理修繕工事", "category": "官庁下請工事", "person": "鈴木 悠仁", "done": "2025-12-31", "revenue": 31700000, "profit": 6193447}, {"customer": "㈱熊谷組 名古屋支店", "name": "静岡県食肉センター他新築工事（2期工事）", "category": "官庁下請工事", "person": "川井 大輔", "done": "2025-12-31", "revenue": 21600000, "profit": 3743224}, {"customer": "日東電設㈱", "name": "R6静岡県食肉センター新築他工事(2期その1)", "category": "官庁下請工事", "person": "小林 徹也", "done": "2025-12-31", "revenue": 9480000, "profit": 1105082}, {"customer": "㈱松下組", "name": "静岡県食肉センター新築他工事Ⅱ期工事（外", "category": "官庁下請工事", "person": "益田 桂志", "done": "2025-12-31", "revenue": 8140000, "profit": 1398386}, {"customer": "日進電機㈱", "name": "静岡県食肉ｾﾝﾀｰ新築他工事Ⅱ期(残土処分）", "category": "その他", "person": "川井 大輔", "done": "2025-12-31", "revenue": 1600000, "profit": 298600}, {"customer": "㈱熊谷組 名古屋支店", "name": "静岡空港駐機ｽﾍﾟｰｽ建設工事仮設撤去工事", "category": "官庁下請工事", "person": "川井 大輔", "done": "2025-12-31", "revenue": 120000, "profit": 16000}, {"customer": "㈱渥美", "name": "観音配水系豊住地区配水管布設替工事（第1", "category": "民間下請工事", "person": "益田 桂志", "done": "2025-12-31", "revenue": 160000, "profit": 50733}, {"customer": "南部建設㈱", "name": "スズキ大須賀工場", "category": "民間下請工事", "person": "益田 桂志", "done": "2025-12-31", "revenue": 648000, "profit": 198000}, {"customer": "南部建設㈱", "name": "マクドナルド袋井川井店外構工事", "category": "民間下請工事", "person": "益田 桂志", "done": "2025-12-31", "revenue": 465000, "profit": 64000}, {"customer": "㈱TOKAI 建設不動産本部 事業開発推進部", "name": "R7 TOKAI太陽光発電施設除草工(天竜・裾野)", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2026-01-31", "revenue": 3350000, "profit": 530000}, {"customer": "㈱特種東海フォレスト", "name": "R7 牛尾山東地区工業用地整備事業造成工事", "category": "官庁下請工事", "person": "山崎 大介", "done": "2026-01-31", "revenue": 10260000, "profit": 2233193}, {"customer": "大河原建設㈱", "name": "レーベン浜松常盤町外構", "category": "民間下請工事", "person": "山崎 大介", "done": "2026-01-31", "revenue": 29000000, "profit": 4240000}, {"customer": "南部建設㈱", "name": "（仮称）静岡掛川物流施設新築工事（常用）", "category": "民間下請工事", "person": "益田 桂志", "done": "2026-01-31", "revenue": 3011726, "profit": 123863}, {"customer": "南部建設㈱", "name": "菊川市下前田川改修工事", "category": "民間下請工事", "person": "益田 桂志", "done": "2026-01-31", "revenue": 390000, "profit": 15000}, {"customer": "㈲ケイエム建機", "name": "吉田町神戸地内ｺﾝｶﾞﾗ運搬処分工事", "category": "民間下請工事", "person": "山崎 大介", "done": "2026-01-31", "revenue": 550000, "profit": 120000}, {"customer": "島田市役所", "name": "R7 島田市阪本地内防火水槽撤去工事", "category": "官公庁発注工事", "person": "小林 大介", "done": "2026-02-28", "revenue": 3650000, "profit": 1289723}, {"customer": "㈱橘", "name": "熱海ユニオンビル浴室改修工事", "category": "民間元請工事", "person": "川井 大輔", "done": "2026-02-28", "revenue": 2250000, "profit": 538965}, {"customer": "㈱常宏 浜松営業所", "name": "R7二級河川大須賀新川河川維持(袋詰め玉石)", "category": "官庁下請工事", "person": "鈴木 悠仁", "done": "2026-02-28", "revenue": 2048000, "profit": 294400}, {"customer": "南部建設㈱", "name": "ノブレスパルク袋井", "category": "民間下請工事", "person": "益田 桂志", "done": "2026-02-28", "revenue": 170000, "profit": 60000}, {"customer": "医療法人社団 駿河西病院", "name": "CUCフーズ 壁修繕工事", "category": "民間元請工事", "person": "鈴木 悠仁", "done": "2026-03-31", "revenue": 165000, "profit": 23000}, {"customer": "㈱熱海柑橘農園", "name": "熱海ユニオンビル1階テナント天井改修工事", "category": "民間元請工事", "person": "川井 大輔", "done": "2026-03-31", "revenue": 380000, "profit": 140500}, {"customer": "㈱原小組", "name": "R7抜里山海戸急傾斜地崩壊対策工事（1工区", "category": "官庁下請工事", "person": "鈴木 悠仁", "done": "2026-03-31", "revenue": 9545455, "profit": 1284105}, {"customer": "㈱原小組", "name": "R7県単独林道(舗装)林道八高山線舗装GR施工", "category": "官庁下請工事", "person": "鈴木 悠仁", "done": "2026-03-31", "revenue": 277000, "profit": 55000}, {"customer": "㈱常宏 浜松営業所", "name": "西大谷川 袋詰め玉石工", "category": "官庁下請工事", "person": "鈴木 悠仁", "done": "2026-03-31", "revenue": 235000, "profit": 53390}, {"customer": "造景屋 沙羅乃樹㈱", "name": "静岡市瀬名川（塩津様邸）駐車場舗装工事", "category": "民間下請工事", "person": "鈴木 悠仁", "done": "2026-03-31", "revenue": 2810000, "profit": 495000}, {"customer": "㈱中林建設", "name": "東京地区送電線鉄塔部材取替(2)敷地整備工", "category": "民間下請工事", "person": "山崎 大介", "done": "2026-03-31", "revenue": 3820000, "profit": 817000}, {"customer": "日本道路㈱ 静岡営業所", "name": "(仮称)静岡市駿河区池田分譲ﾏﾝｼｮﾝ新築工事", "category": "民間下請工事", "person": "川井 大輔", "done": "2026-03-31", "revenue": 392000, "profit": 28000}, {"customer": "大河原建設㈱", "name": "横浜冷凍物流センター入口門塀・水路改修", "category": "民間下請工事", "person": "山崎 大介", "done": "2026-03-31", "revenue": 8500000, "profit": 1378600}, {"customer": "大河原建設㈱", "name": "横浜冷凍大井川物流センターMH取替", "category": "民間下請工事", "person": "山崎 大介", "done": "2026-03-31", "revenue": 430000, "profit": 130000}, {"customer": "南部建設㈱", "name": "三和化成工業㈱静岡工場 倉庫新築工事", "category": "民間下請工事", "person": "益田 桂志", "done": "2026-03-31", "revenue": 812000, "profit": 29000}, {"customer": "㈱ラックランド 静岡営業所", "name": "裾野市ホテルクーネルイン様 駐車場整備", "category": "民間下請工事", "person": "青島 秀和", "done": "2026-03-31", "revenue": 670000, "profit": 94000}]};
+// ===== 接続設定（ここだけ書き換えてください）=====
+const GAS_URL   = '1Cwivsf0TaBl1-4ZaV-2iISHHjQ583R_qdRgWCfcN-sY';            // GASウェブアプリのURL（末尾/exec）。空のままだとデモ表示
+const GAS_TOKEN = '0000';   // Code.gs の TOKEN と同じ文字列にする
+// ===============================================
+let RAW=JSON.parse(JSON.stringify(SAMPLE));
+let CONNECTED=false, LASTSAVE=null, STATUSMSG='';
+let FROMSTORE=false; // 互換のため保持（スロット表示用）
+const tsText=t=>{if(!t)return '';const d=new Date(t);const p=n=>String(n).padStart(2,'0');return `${p(d.getHours())}:${p(d.getMinutes())}`;};
+async function gasLoad(){
+  const res=await fetch(GAS_URL+'?token='+encodeURIComponent(GAS_TOKEN)+'&t='+Date.now());
+  const d=await res.json(); if(d.error)throw new Error(d.error);
+  return {cases:Array.isArray(d.cases)?d.cases:[],completed:Array.isArray(d.completed)?d.completed:[]};
+}
+async function gasSave(){
+  if(!CONNECTED)return;
+  STATUSMSG='保存中…';renderSlots();
+  try{const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:GAS_TOKEN,cases:RAW.cases,completed:RAW.completed})});
+    const d=await res.json();if(d.error)throw new Error(d.error);LASTSAVE=Date.now();STATUSMSG='';}
+  catch(e){STATUSMSG='⚠ 保存エラー：'+e.message;}
+  renderSlots();
+}
+async function init(){
+  if(!GAS_URL){CONNECTED=false;STATUSMSG='デモ表示（接続設定が未入力）';FROMSTORE=false;renderSlots();render();return;}
+  STATUSMSG='スプレッドシートに接続中…';renderSlots();render();
+  try{RAW=await gasLoad();CONNECTED=true;FROMSTORE=true;STATUSMSG='';}
+  catch(e){CONNECTED=false;FROMSTORE=false;STATUSMSG='⚠ 未接続：'+e.message+'（サンプル表示中）';}
+  renderSlots();render();
+}
+let TAB='dash', DONUT='amount', CATFILT='all', sortKey='revenue', sortDir=-1;
+const CATS=['官公庁発注工事','官庁下請工事','民間元請工事','民間下請工事','その他'];
+const CATHEX={'官公庁発注工事':'#2F6FE0','官庁下請工事':'#1D9E8B','民間元請工事':'#E09A24','民間下請工事':'#D9603A','その他':'#8B97A4'};
+const catOf=c=>CATS.includes(c)?c:'その他';
+const yen=n=>(n==null||isNaN(n))?'':Math.round(n).toLocaleString('ja-JP');
+const pct=r=>(r==null||isNaN(r))?'—':(r*100).toFixed(1)+'%';
+const monthOf=r=>(r.done||'').slice(0,7)||'未設定';
+const norm=s=>(s||'').replace(/[\s\u3000\(\)（）　・,，.。:：\-ー―~〜～]/g,'').replace(/[Ａ-Ｚａ-ｚ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).toUpperCase();
+function nameMatch(a,b){a=norm(a);b=norm(b);if(a.length<5||b.length<5)return false;if(a.includes(b)||b.includes(a))return Math.min(a.length,b.length)>=6;const k=Math.min(a.length,b.length);let i=0;while(i<k&&a[i]===b[i])i++;return i>=8;}
+function band(r){if(r==null||isNaN(r))return 'low';if(r<0)return 'neg';if(r>=0.20)return 'hi';if(r>=0.10)return 'midb';return 'low';}
+const toISO=v=>{if(v==null||v==='')return null;if(v instanceof Date)return new Date(v.getTime()-v.getTimezoneOffset()*60000).toISOString().slice(0,10);if(typeof v==='number'){if(v<1||v>80000)return null;const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000);return d.toISOString().slice(0,10);}const m=String(v).match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);return m?`${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`:null;};
+const keyf=r=>norm(r.customer)+'|'+norm(r.name);
+
+function completedRows(){return RAW.completed.map(a=>({customer:a.customer,name:a.name,category:catOf(a.category),
+  person:a.person||'',done:a.done,month:monthOf(a),revenue:(a.revenue||0)/10000,profit:(a.profit||0)/10000,margin:a.revenue?a.profit/a.revenue:null}));}
+function matchState(){const used=new Array(RAW.completed.length).fill(false);const promoted=[],remaining=[];
+  RAW.cases.forEach(c=>{let mi=-1;for(let i=0;i<RAW.completed.length;i++){if(used[i])continue;const a=RAW.completed[i];
+    if(a.customer&&c.customer&&norm(a.customer).slice(0,4)===norm(c.customer).slice(0,4)&&nameMatch(a.name,c.name)){mi=i;break;}}
+    if(mi>=0){used[mi]=true;promoted.push(c);}else remaining.push(c);});return {promoted,remaining};}
+const oh=()=>{const el=document.getElementById('overhead');return el?(Number(el.value)||0)/100:0.13;};
+function caseMargin(c){return c.baseRate!=null?c.baseRate+oh():(c.marginCached!=null?c.marginCached:null);}
+function catAgg(){const rows=completedRows();const m={};CATS.forEach(k=>m[k]={cat:k,n:0,rev:0,profit:0});
+  rows.forEach(r=>{m[r.category].n++;m[r.category].rev+=r.revenue;m[r.category].profit+=r.profit;});
+  const arr=CATS.map(k=>m[k]).filter(o=>o.n>0);const tRev=arr.reduce((s,o)=>s+o.rev,0),tN=arr.reduce((s,o)=>s+o.n,0);
+  arr.forEach(o=>{o.pctRev=tRev?o.rev/tRev:0;o.pctN=tN?o.n/tN:0;o.margin=o.rev?o.profit/o.rev:null;});
+  return {arr,tRev,tN,tProfit:arr.reduce((s,o)=>s+o.profit,0)};}
+function monthAgg(){const m={};RAW.completed.forEach(a=>{const k=monthOf(a);(m[k]=m[k]||{month:k,n:0,rev:0});m[k].n++;m[k].rev+=(a.revenue||0)/10000;});
+  return Object.values(m).sort((a,b)=>a.month<b.month?-1:1);}
+function personAgg(){const recs=RAW.completed.map(a=>({person:(a.person||'（未設定）').trim()||'（未設定）',rev:(a.revenue||0)/10000,profit:(a.profit||0)/10000}));
+  const m={};recs.forEach(x=>{(m[x.person]=m[x.person]||{person:x.person,n:0,rev:0,profit:0});m[x.person].n++;m[x.person].rev+=x.rev;m[x.person].profit+=x.profit;});
+  return Object.values(m).map(o=>({...o,margin:o.rev?o.profit/o.rev:null})).sort((a,b)=>(b.margin??-9)-(a.margin??-9));}
+
+function donutSVG(arr,tRev,tN){const C=2*Math.PI*70;let off=0;const byAmt=DONUT==='amount';
+  const segs=arr.map(o=>{const frac=byAmt?o.pctRev:o.pctN;const len=frac*C;
+    const s=`<circle cx="90" cy="90" r="70" fill="none" stroke="${CATHEX[o.cat]}" stroke-width="24" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 90 90)"/>`;off+=len;return s;}).join('');
+  const cN=byAmt?yen(tRev):tN,cL=byAmt?'万円 (完成売上)':'件 (完成工事)';
+  return `<svg viewBox="0 0 180 180" width="180" height="180"><circle cx="90" cy="90" r="70" fill="none" stroke="#EEF1F5" stroke-width="24"/>${segs}
+    <text x="90" y="86" text-anchor="middle" font-size="22" font-weight="800" fill="#1A2533" class="num">${cN}</text>
+    <text x="90" y="104" text-anchor="middle" font-size="10" fill="#64717F">${cL}</text></svg>`;}
+
+function renderSlots(){
+  document.getElementById('led1').classList.toggle('on',CONNECTED);
+  document.getElementById('src1').textContent=(CONNECTED?'保存済み ':'サンプル ')+'：'+RAW.cases.length+'件';
+  document.getElementById('led2').classList.toggle('on',CONNECTED);
+  document.getElementById('src2').textContent='累計 '+RAW.completed.length+'件';
+  const bb=document.getElementById('batchbar');
+  const stat = STATUSMSG ? `<span class="memo${STATUSMSG.indexOf('⚠')>=0?'':' on'}">${STATUSMSG}</span>`
+    : CONNECTED ? `<span class="memo on">☁ スプレッドシートに保存中${LASTSAVE?`（最終保存 ${tsText(LASTSAVE)}）`:''}</span>`
+    : `<span class="memo">デモ表示</span>`;
+  bb.innerHTML=`${stat}<span style="color:var(--sub)">｜ 完成工事 累計 <span class="num" style="font-weight:800;color:var(--ink)">${RAW.completed.length}</span> 件</span>
+    <span class="spacer"></span><button class="mini" id="reloadBtn">↻ 再読込</button><button class="mini" id="clearAll">全消去</button>`;
+  document.getElementById('reloadBtn').onclick=()=>init();
+  document.getElementById('clearAll').onclick=async()=>{if(confirm('累計した完成工事をすべて消去しますか？（スプレッドシートも空になります）')){RAW.completed=[];renderSlots();render();await gasSave();}};
+}
+
+function render(){
+  document.getElementById('tabs').innerHTML=[['dash','ダッシュボード'],['done','完成工事'],['open','未成工事'],['person','担当者別評価']]
+    .map(([k,l])=>`<button class="${TAB===k?'on':''}" data-t="${k}">${l}</button>`).join('');
+  const v=document.getElementById('view');
+  v.innerHTML=TAB==='dash'?viewDash():TAB==='done'?viewDone():TAB==='open'?viewOpen():viewPerson();
+  bind();
+}
+function viewDash(){const {arr,tRev,tN,tProfit}=catAgg();const {promoted,remaining}=matchState();
+  const legend=arr.map(o=>`<tr><td><span class="catdot" style="background:${CATHEX[o.cat]}"></span><span style="font-weight:700">${o.cat}</span></td>
+    <td class="r num">${o.n}</td><td class="r num">${yen(o.rev)}</td>
+    <td class="r"><span class="pctbar"><span class="track"><i style="width:${((DONUT==='amount'?o.pctRev:o.pctN)*100).toFixed(0)}%;background:${CATHEX[o.cat]}"></i></span><span class="v num">${pct(DONUT==='amount'?o.pctRev:o.pctN)}</span></span></td></tr>`).join('');
+  return `<div class="kpirow">
+    <div class="kpi up"><div class="l">完成工事（累計）</div><div class="b num">${tN}<span class="u"> 件</span></div><div class="m">売上計 <b class="num">${yen(tRev)}</b> 万円 ・ 粗利率 ${tRev?pct(tProfit/tRev):'—'}</div></div>
+    <div class="kpi mid"><div class="l">未成工事（残）</div><div class="b num">${remaining.length}<span class="u"> 件</span></div><div class="m">完成分を除外した残り</div></div>
+    <div class="kpi"><div class="l">完成へ繰り上げ</div><div class="b num">${promoted.length}<span class="u"> 件</span></div><div class="m">未成→完成に自動移動</div></div></div>
+  <div class="dashgrid">
+    <div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center">受注区分の割合
+      <span class="togg"><button data-donut="amount" class="${DONUT==='amount'?'on':''}">金額</button><button data-donut="count" class="${DONUT==='count'?'on':''}">件数</button></span></h3>
+      <div class="donutwrap">${donutSVG(arr,tRev,tN)}</div></div>
+    <div class="card"><h3>受注区分別 内訳（完成工事 累計）</h3>
+      <table><thead><tr><th>受注区分</th><th class="r">件数</th><th class="r">売上(万円)</th><th class="r">割合</th></tr></thead>
+      <tbody>${legend}</tbody>
+      <tfoot><tr style="border-top:2px solid var(--ink);font-weight:800;background:#F3F6F9"><td style="padding:9px 11px">合計</td><td class="r num" style="padding:9px 11px">${tN}</td><td class="r num" style="padding:9px 11px">${yen(tRev)}</td><td class="r" style="padding:9px 11px">100%</td></tr></tfoot></table></div></div>`;
+}
+function viewDone(){let rows=completedRows();if(CATFILT!=='all')rows=rows.filter(r=>r.category===CATFILT);
+  rows.sort((a,b)=>{let va=a[sortKey]??-9,vb=b[sortKey]??-9;if(sortKey==='name'||sortKey==='category'||sortKey==='month'){va=a[sortKey]||'';vb=b[sortKey]||'';}return va<vb?-1*sortDir:va>vb?1*sortDir:0;});
+  const opt=['all',...CATS].map(c=>`<option value="${c}"${CATFILT===c?' selected':''}>${c==='all'?'すべての区分':c}</option>`).join('');
+  const body=rows.map(r=>{const bc=band(r.margin),bw=Math.max(0,Math.min(100,((r.margin||0)/0.30)*100));
+    return `<tr><td><span class="catbadge" style="background:${CATHEX[r.category]}22;color:${CATHEX[r.category]}"><span class="catdot" style="background:${CATHEX[r.category]}"></span>${r.category}</span></td>
+      <td><div class="nm">${r.name}</div><div class="cust">${r.customer}</div></td><td>${r.person}</td>
+      <td class="num" style="color:var(--sub)">${r.done||''}</td><td class="r num">${yen(r.revenue)}</td>
+      <td class="r"><span class="mz ${bc}"><span class="mbar"><i style="width:${bw}%"></i></span><span class="mval num">${pct(r.margin)}</span></span></td></tr>`;}).join('');
+  const to=rows.reduce((s,r)=>s+r.revenue,0),tp=rows.reduce((s,r)=>s+r.profit,0);
+  return `<div class="tablecard"><div class="tablehead"><h2>完成工事（受注区分で自動振り分け・累計）</h2>
+    <div class="right"><select class="filt" id="catfilt">${opt}</select><span>${rows.length}件</span></div></div>
+    <div class="scroll"><table><thead><tr><th data-k="category">受注区分</th><th data-k="name">工事名／得意先</th><th data-k="person">担当</th><th data-k="month">完成</th><th class="r" data-k="revenue">完成工事高</th><th class="r" data-k="margin">粗利率</th></tr></thead>
+      <tbody>${body}</tbody>
+      <tfoot><tr style="border-top:2px solid var(--ink);font-weight:800;background:#F3F6F9"><td colspan="4" style="padding:10px 11px">合計 ${rows.length}件</td><td class="r num" style="padding:10px 11px">${yen(to)}</td><td class="r num" style="padding:10px 11px">${to?pct(tp/to):'—'}</td></tr></tfoot></table></div></div>`;
+}
+function viewOpen(){const {promoted,remaining}=matchState();
+  const body=remaining.map(c=>{const mg=caseMargin(c),bc=band(mg),bw=Math.max(0,Math.min(100,((mg||0)/0.30)*100));
+    return `<tr><td><span class="catbadge" style="background:#EEF2F6;color:var(--sub)">${c.section}</span></td>
+      <td><div class="nm">${c.name}</div><div class="cust">${c.customer}</div></td><td>${c.person||''}</td>
+      <td class="num" style="color:var(--sub)">${c.pend||''}</td><td class="r num">${yen(c.order)}</td>
+      <td class="r"><span class="mz ${bc}"><span class="mbar"><i style="width:${bw}%"></i></span><span class="mval num">${pct(mg)}</span></span></td></tr>`;}).join('');
+  return `<div class="banner">✔ 完成工事一覧に載っていた <b>${promoted.length}件</b> を未成から繰り上げ（除外）。残りの未成工事は <b>${remaining.length}件</b> です。</div>
+  <div class="tablecard"><div class="tablehead"><h2>未成工事（一覧に残す）</h2>
+    <div class="right"><span class="ohbox">粗利率加算 <input type="number" id="overhead" value="13" step="1" min="0">%</span><span>${remaining.length}件</span></div></div>
+    <div class="scroll"><table><thead><tr><th>区分</th><th>工事名／得意先</th><th>担当</th><th>工期末</th><th class="r">受注額</th><th class="r">粗利率</th></tr></thead><tbody>${body}</tbody></table></div></div>`;
+}
+function viewPerson(){const arr=personAgg();const maxM=Math.max(...arr.map(a=>a.margin||0),0.30);
+  const body=arr.map((a,i)=>{const bc=band(a.margin),bw=Math.max(0,Math.min(100,((a.margin||0)/maxM)*100));const rc=i===0?'r1':i===1?'r2':i===2?'r3':'';
+    return `<tr><td><span class="rank ${rc}">${i+1}</span></td><td style="font-weight:800">${a.person}</td><td class="r num">${a.n}</td><td class="r num">${yen(a.rev)}</td><td class="r num">${yen(a.profit)}</td>
+      <td class="r"><span class="mz ${bc}"><span class="mbar" style="width:120px"><i style="width:${bw}%"></i></span><span class="mval num">${pct(a.margin)}</span></span></td></tr>`;}).join('');
+  const tr=arr.reduce((s,a)=>s+a.rev,0),tp=arr.reduce((s,a)=>s+a.profit,0),tn=arr.reduce((s,a)=>s+a.n,0);
+  return `<div class="tablecard"><div class="tablehead"><h2>担当者別 粗利率（完成実績 累計）</h2><div class="right"><span>${arr.length}名</span></div></div>
+    <div class="scroll"><table><thead><tr><th style="width:50px">順位</th><th>担当者（現場代理人）</th><th class="r">件数</th><th class="r">売上計</th><th class="r">粗利計</th><th class="r" style="width:200px">粗利率</th></tr></thead>
+    <tbody>${body}</tbody><tfoot><tr style="border-top:2px solid var(--ink);font-weight:800;background:#F3F6F9"><td></td><td style="padding:10px 11px">全社 平均</td><td class="r num">${tn}</td><td class="r num">${yen(tr)}</td><td class="r num">${yen(tp)}</td><td class="r num">${tr?pct(tp/tr):'—'}</td></tr></tfoot></table></div></div>`;
+}
+function bind(){document.querySelectorAll('[data-donut]').forEach(b=>b.onclick=()=>{DONUT=b.dataset.donut;render();});
+  const cf=document.getElementById('catfilt');if(cf)cf.onchange=()=>{CATFILT=cf.value;render();};
+  const o=document.getElementById('overhead');if(o)o.oninput=()=>render();
+  document.querySelectorAll('thead th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==='revenue'||k==='margin')?-1:1;}render();});}
+document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b){TAB=b.dataset.t;render();}});
+
+function parseCases(wb){const nm0=wb.SheetNames.find(n=>n.replace(/\s/g,'')==='手持ち工事量')||wb.SheetNames.find(n=>n.includes('手持'))||wb.SheetNames[0];
+  const ws=wb.Sheets[nm0];const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+  const sm={'①':'①商社工事','②':'②土木官庁','③':'③土木下請','⑤':'⑤優先(繰越)','⑥':'⑥見込み'};let sec=null;const cases=[];
+  A.forEach(row=>{const a=row[0];if(typeof a==='string'){for(const k in sm)if(a.startsWith(k))sec=sm[k];}
+    const cust=row[1],name=row[2];if(sec&&cust&&name&&name!=='物件名'&&!String(cust).startsWith('計')){cases.push({section:sec,code:typeof a==='string'&&/^\d/.test(a)?a.trim():'',
+      customer:String(cust).replace(/\u3000/g,' '),name:String(name).replace(/\u3000/g,' '),person:row[4]?String(row[4]).replace(/\u3000/g,' '):'',
+      pstart:toISO(row[5]),pend:toISO(row[7])||toISO(row[6]),order:Number(row[8])||0,baseRate:(row[11]==null||row[11]==='')?null:Number(row[11]),marginCached:(row[9]==null||row[9]==='')?null:Number(row[9])});}});
+  return cases;}
+function parseCompleted(wb){const tg=wb.SheetNames.filter(n=>/完成/.test(n)&&(n.includes('土木')||n.includes('営業'))&&!n.includes('原価管理')&&!n.includes('全体'));
+  const list=tg.length?tg:wb.SheetNames;const out=[];const seen=new Set();
+  list.forEach(nm=>{const ws=wb.Sheets[nm];const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});let hr=-1,H={};
+    for(let i=0;i<Math.min(A.length,10);i++){const row=(A[i]||[]).map(x=>String(x||''));if(row.some(c=>c.includes('完成工事高'))){hr=i;row.forEach((c,j)=>{if(c)H[c]=j});break;}}
+    if(hr<0)return;const col=(...ns)=>{for(const n of ns)for(const k in H)if(k.includes(n))return H[k];return -1;};
+    const ci={cust:col('得意先'),name:col('工事名'),cat:col('受注区分'),person:col('現場代理人'),done:col('完成年月'),rev:col('完成工事高'),profit:col('実質利益')};
+    if(ci.rev<0||ci.name<0)return;
+    for(let i=hr+1;i<A.length;i++){const row=A[i]||[];const rev=Number(row[ci.rev]);const name=row[ci.name];
+      if(!name||!rev||isNaN(rev))continue;if(String(name).includes('工事名'))continue;const key=String(row[ci.cust])+'|'+name;if(seen.has(key))continue;seen.add(key);
+      out.push({customer:String(row[ci.cust]||'').replace(/\u3000/g,' '),name:String(name).replace(/\u3000/g,' '),
+        category:ci.cat>=0?String(row[ci.cat]||'').replace(/\u3000/g,' '):'',person:ci.person>=0?String(row[ci.person]||'').replace(/\u3000/g,' '):'',
+        done:toISO(row[ci.done]),revenue:Number(row[ci.rev])||0,profit:Number(row[ci.profit])||0});}});
+  return out;}
+
+function mergeCompleted(rows){const have=new Set(RAW.completed.map(keyf));let add=0,skip=0;
+  rows.forEach(r=>{const k=keyf(r);if(have.has(k)){skip++;}else{have.add(k);RAW.completed.push(r);add++;}});return {add,skip};}
+
+document.getElementById('file1').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+  f.arrayBuffer().then(async b=>{try{const c=parseCases(XLSX.read(b,{type:'array'}));if(!c.length){alert('工事一覧表（未成）を認識できませんでした。');return;}
+    RAW.cases=c;renderSlots();render();await gasSave();
+    alert('工事一覧表（未成）を取り込みました：'+c.length+'件'+(CONNECTED?'\n（スプレッドシートに保存しました）':'\n（デモ表示：未接続のため保存はされません）'));}catch(err){alert('読み込み失敗：'+err.message);}});});
+document.getElementById('file2').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+  f.arrayBuffer().then(async b=>{try{const c=parseCompleted(XLSX.read(b,{type:'array'}));if(!c.length){alert('完成工事一覧を認識できませんでした。');return;}
+    const {add,skip}=mergeCompleted(c);renderSlots();render();await gasSave();
+    alert(`完成工事を積み上げました。\n新規追加：${add}件${skip?`\n重複でスキップ：${skip}件`:''}\n累計：${RAW.completed.length}件`+(CONNECTED?'\n（スプレッドシートに保存しました）':'\n（デモ表示：未接続のため保存はされません）'));}catch(err){alert('読み込み失敗：'+err.message);}});});
+[['slot1','file1'],['slot2','file2']].forEach(([id,fid])=>{const el=document.getElementById(id);
+  ['dragenter','dragover'].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();el.classList.add('hot');}));
+  ['dragleave','drop'].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();el.classList.remove('hot');}));
+  el.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f){const inp=document.getElementById(fid);const dt=new DataTransfer();dt.items.add(f);inp.files=dt.files;inp.dispatchEvent(new Event('change'));}});});
+
+document.getElementById('dl').addEventListener('click',()=>{const wb=XLSX.utils.book_new();
+  const done=completedRows();const {remaining}=matchState();const {arr}=catAgg();
+  const dws=XLSX.utils.aoa_to_sheet([['受注区分','得意先','工事名','担当','完成','完成工事高(万円)','粗利率'],...done.map(r=>[r.category,r.customer,r.name,r.person,r.done||'',Math.round(r.revenue),r.margin!=null?Number(r.margin.toFixed(4)):''])]);
+  dws['!cols']=[{wch:14},{wch:22},{wch:34},{wch:10},{wch:11},{wch:13},{wch:8}];XLSX.utils.book_append_sheet(wb,dws,'完成工事(累計)');
+  const ows=XLSX.utils.aoa_to_sheet([['区分','得意先','工事名','担当','工期末','受注額(万円)','粗利率'],...remaining.map(c=>[c.section,c.customer,c.name,c.person||'',c.pend||'',Math.round(c.order||0),caseMargin(c)!=null?Number(caseMargin(c).toFixed(4)):''])]);
+  XLSX.utils.book_append_sheet(wb,ows,'未成工事');
+  const cws=XLSX.utils.aoa_to_sheet([['受注区分','件数','売上(万円)','粗利率','割合(売上)'],...arr.map(o=>[o.cat,o.n,Math.round(o.rev),o.margin!=null?Number(o.margin.toFixed(4)):'',Number(o.pctRev.toFixed(4))])]);
+  XLSX.utils.book_append_sheet(wb,cws,'受注区分サマリー');
+  XLSX.writeFile(wb,'工事管理_ダッシュボード.xlsx');});
+
+init();
+</script>
+</body>
+</html>
