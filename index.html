@@ -33,6 +33,17 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Hiragino K
 .batchbar .spacer{flex:1}
 .batchbar .mini{font:inherit;font-size:11px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:7px;padding:5px 10px;cursor:pointer}
 .batchbar .mini:hover{border-color:var(--accent);color:var(--accent)}
+.histcard{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+.histhead{font-size:11px;font-weight:800;color:var(--sub);padding:9px 14px;border-bottom:1px solid var(--line2);background:#F7F9FC}
+.histrow{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line2);font-size:12px}
+.histrow:last-child{border-bottom:none}
+.kb{font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
+.kb.open{background:#EEF2F6;color:var(--sub)} .kb.done{background:#E4F5EC;color:#166B4E}
+.histrow .hn{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.histrow .ht{color:var(--sub);font-size:11px;white-space:nowrap}
+.histrow .hc{color:var(--sub);font-weight:700;white-space:nowrap}
+.histrow .hdel{font:inherit;font-size:11px;font-weight:700;border:1px solid #E9C2C7;background:#fff;color:#B23A48;border-radius:7px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+.histrow .hdel:hover{background:#B23A48;color:#fff}
 .tabs{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:16px}
 .tabs button{font:inherit;font-weight:700;font-size:12px;border:none;background:transparent;color:var(--sub);padding:9px 18px;cursor:pointer;border-right:1px solid var(--line2)}
 .tabs button:last-child{border-right:none}
@@ -92,6 +103,7 @@ td.r{text-align:right}
       <label class="pick">選択<input type="file" id="file2" accept=".xlsx,.xls"></label></div>
   </div>
   <div class="batchbar" id="batchbar"></div>
+  <div id="history"></div>
 
   <div class="tabs" id="tabs"></div>
   <div id="view"></div>
@@ -137,13 +149,20 @@ async function init(){
 // 数値・整合性の補正
 function normalize(){
   RAW.cases=(RAW.cases||[]).map(fix); RAW.completed=(RAW.completed||[]).map(fix);
-  reconcile();
 }
 function fix(r){ return {code:String(r.code||''),customer:r.customer||'',name:r.name||'',dept:r.dept||'',
   category:r.category||'未分類',person:r.person||'',pstart:r.pstart||null,pend:r.pend||null,done:r.done||null,
-  amount:Number(r.amount)||0, profit:(r.profit==null||r.profit==='')?null:Number(r.profit)}; }
-function reconcile(){ const comp=new Set(RAW.completed.map(x=>String(x.code)));
-  const before=RAW.cases.length; RAW.cases=RAW.cases.filter(c=>!comp.has(String(c.code))); return before-RAW.cases.length; }
+  amount:Number(r.amount)||0, profit:(r.profit==null||r.profit==='')?null:Number(r.profit), _batch:r._batch||''}; }
+// 完成に載っているコードは未成一覧から隠す（物理的に消さないので削除で元に戻せる）
+function completedCodes(){ return new Set(RAW.completed.map(x=>String(x.code))); }
+function effCases(){ const c=completedCodes(); return RAW.cases.filter(r=>!c.has(String(r.code))); }
+// 取込履歴（ファイル単位）を _batch タグから復元
+function batchList(){ const map={};
+  const add=(arr,kind)=>arr.forEach(r=>{const t=r._batch||'（不明）';(map[t]=map[t]||{tag:t,n:0,kind:kind});map[t].n++;});
+  add(RAW.cases,'open'); add(RAW.completed,'done');
+  return Object.values(map).map(b=>{const p=String(b.tag).split('｜');return Object.assign(b,{name:p[0]||'（既存データ）',ts:p[1]||''});})
+    .sort((a,b)=>a.ts<b.ts?1:-1); }
+function deleteBatch(tag){ RAW.cases=RAW.cases.filter(r=>r._batch!==tag); RAW.completed=RAW.completed.filter(r=>r._batch!==tag); }
 
 // ===== 集計 =====
 function assignColors(){ const cats=new Set(); RAW.completed.concat(RAW.cases).forEach(r=>cats.add(r.category||'未分類'));
@@ -179,14 +198,28 @@ function render(){ assignColors();
   document.getElementById('tabs').innerHTML=[['dash','ダッシュボード'],['done','完成工事'],['open','未成工事']]
     .map(([k,l])=>`<button class="${TAB===k?'on':''}" data-t="${k}">${l}</button>`).join('');
   document.getElementById('view').innerHTML=TAB==='dash'?viewDash():TAB==='done'?viewDone():viewOpen();
+  renderBatches();
   bind();
+}
+function renderBatches(){
+  const el=document.getElementById('history'); if(!el)return;
+  const bs=batchList();
+  if(!bs.length){ el.innerHTML=''; return; }
+  const rows=bs.map(b=>{ const kb=b.kind==='done'?'<span class="kb done">完成</span>':'<span class="kb open">未成</span>';
+    let ts=''; if(b.ts){ const d=new Date(b.ts); const p=n=>String(n).padStart(2,'0'); ts=`${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+    return `<div class="histrow">${kb}<span class="hn">${b.name}</span><span class="ht">${ts}</span><span class="hc num">${b.n}件</span><button class="hdel" data-tag="${encodeURIComponent(b.tag)}">🗑 削除</button></div>`; }).join('');
+  el.innerHTML=`<div class="histcard"><div class="histhead">📥 取込履歴（ファイル単位・削除すると取り込む前の状態に戻ります）</div>${rows}</div>`;
+  el.querySelectorAll('.hdel').forEach(x=>x.onclick=async()=>{ const tag=decodeURIComponent(x.dataset.tag);
+    if(confirm('この取込を取り消しますか？\n取り込む前の状態に戻ります（完成にした工事は未成に戻ります）。')){
+      deleteBatch(tag); renderBar(); render(); await gasSave(); } });
 }
 function viewDash(){
   const {arr,tAmt,tN}=catAgg(RAW.completed);
-  const openAmt=RAW.cases.reduce((s,r)=>s+(r.amount||0),0);
+  const eff=effCases();
+  const openAmt=eff.reduce((s,r)=>s+(r.amount||0),0);
   const kpis=`<div class="kpirow">
-    <div class="kpi up"><div class="l">完成工事（累計）</div><div class="b num">${RAW.completed.length}<span class="u"> 件</span></div><div class="m">請負計 <b class="num">${man(tAmt)}</b> 万円（税抜）</div></div>
-    <div class="kpi mid"><div class="l">未成工事（残）</div><div class="b num">${RAW.cases.length}<span class="u"> 件</span></div><div class="m">請負計 <b class="num">${man(openAmt)}</b> 万円（税抜）</div></div>
+    <div class="kpi up"><div class="l">完成工事（累計）</div><div class="b num">${RAW.completed.length}<span class="u"> 件</span></div><div class="m">完成工事高計 <b class="num">${man(tAmt)}</b> 万円</div></div>
+    <div class="kpi mid"><div class="l">未成工事（残）</div><div class="b num">${eff.length}<span class="u"> 件</span></div><div class="m">請負計 <b class="num">${man(openAmt)}</b> 万円（税抜）</div></div>
     <div class="kpi"><div class="l">受注区分</div><div class="b num">${arr.length}<span class="u"> 区分</span></div><div class="m">完成工事の内訳</div></div></div>`;
   if(!RAW.completed.length) return kpis+`<div class="card"><div class="empty">完成の「工事一覧表」を取り込むと、受注区分の割合がここに表示されます。<br>（どっと原価で「完成」を指定して出力 → このファイルを取り込み）</div></div>`;
   const legend=arr.map(o=>`<tr><td><span class="catdot" style="background:${col(o.cat)}"></span><span style="font-weight:700">${o.cat}</span></td>
@@ -221,7 +254,7 @@ function viewDone(){ const t=listTable(RAW.completed,'完成年月','done','完�
     <div class="scroll"><table><thead>${t.head}</thead><tbody>${t.body||'<tr><td colspan=6 class=empty>まだありません</td></tr>'}</tbody>
     <tfoot><tr style="border-top:2px solid var(--ink);font-weight:800;background:#F3F6F9"><td colspan="5" style="padding:10px 11px">合計 ${t.rows.length}件</td><td class="r num" style="padding:10px 11px">${man(t.tot)}</td></tr></tfoot></table></div></div>`;
 }
-function viewOpen(){ const t=listTable(RAW.cases,'工期末','pend','請負(税抜万円)');
+function viewOpen(){ const t=listTable(effCases(),'工期末','pend','請負(税抜万円)');
   return `<div class="tablecard"><div class="tablehead"><h2>未成工事（積み上げ・完成分は自動で除外）</h2>
     <div class="right"><select class="filt" id="catfilt">${t.opt}</select><span>${t.rows.length}件</span></div></div>
     <div class="scroll"><table><thead>${t.head}</thead><tbody>${t.body||'<tr><td colspan=6 class=empty>まだありません</td></tr>'}</tbody>
@@ -283,19 +316,22 @@ function parseCompletedList(wb){
   }
   return {records:recs};
 }
-function mergeByCode(target,recs){const have=new Set(target.map(x=>String(x.code)));let add=0,skip=0;
-  recs.forEach(r=>{if(have.has(String(r.code))){skip++;}else{have.add(String(r.code));target.push(r);add++;}});return {add,skip};}
+function mergeByCode(target,recs,tag){const have=new Set(target.map(x=>String(x.code)));let add=0,skip=0;
+  recs.forEach(r=>{if(have.has(String(r.code))){skip++;}else{have.add(String(r.code));target.push(Object.assign({},r,{_batch:tag}));add++;}});return {add,skip};}
 
 function importFile(file, kind){
   file.arrayBuffer().then(async b=>{try{
     const wb=XLSX.read(b,{type:'array'});
     const recs = (kind==='done'? parseCompletedList(wb) : parseKoujiList(wb)).records;
     if(!recs.length){ alert((kind==='done'?'完成工事一覧表':'工事一覧表（未成）')+'として認識できませんでした。\nどっと原価の該当出力かご確認ください。'); return; }
+    const tag=`${file.name}｜${new Date().toISOString()}｜${Math.random().toString(36).slice(2,6)}`;
     let msg;
-    if(kind==='done'){ const {add,skip}=mergeByCode(RAW.completed,recs); const moved=reconcile();
-      msg=`【完成】として取込\n新規追加：${add}件${skip?`\n重複スキップ：${skip}件`:''}${moved?`\n未成から移動：${moved}件`:''}\n完成累計：${RAW.completed.length}件`; }
-    else{ const {add,skip}=mergeByCode(RAW.cases,recs); reconcile();
-      msg=`【未成】として取込\n新規追加：${add}件${skip?`\n重複スキップ：${skip}件`:''}\n未成累計：${RAW.cases.length}件`; }
+    if(kind==='done'){ const inCases=new Set(RAW.cases.map(x=>String(x.code)));
+      const {add,skip}=mergeByCode(RAW.completed,recs,tag);
+      const moved=recs.filter(r=>inCases.has(String(r.code))).length;
+      msg=`【完成】取込：${file.name}\n新規追加：${add}件${skip?`\n重複スキップ：${skip}件`:''}${moved?`\n未成一覧から除外：${moved}件`:''}\n完成累計：${RAW.completed.length}件`; }
+    else{ const {add,skip}=mergeByCode(RAW.cases,recs,tag);
+      msg=`【未成】取込：${file.name}\n新規追加：${add}件${skip?`\n重複スキップ：${skip}件`:''}\n未成一覧：${effCases().length}件`; }
     CATFILT='all';renderBar();render();await gasSave();
     alert(msg+(CONNECTED?'\n（スプレッドシートに保存しました）':'\n（未接続：保存されていません）'));
   }catch(err){alert('読み込み失敗：'+err.message);}});
