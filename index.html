@@ -89,7 +89,7 @@ td.r{text-align:right}
 <body>
 <div class="appbar">
   <div class="logo">丸</div>
-  <div class="app-t">工事管理ダッシュボード<small>工事一覧表を積み上げ ・ 受注区分別 集計</small></div>
+  <div class="app-t">工事管理ダッシュボード<small>未成=最新に置換／完成=積み上げ ・ v7</small></div>
   <div class="grow"></div>
   <button class="exp" id="dl">Excel出力</button>
 </div>
@@ -189,7 +189,7 @@ function renderBar(){
   const stat = STATUSMSG ? `<span class="memo${STATUSMSG.indexOf('⚠')>=0?'':' on'}">${STATUSMSG}</span>`
     : CONNECTED ? `<span class="memo on">☁ スプレッドシートに保存中${LASTSAVE?`（最終保存 ${tsText(LASTSAVE)}）`:''}</span>`
     : `<span class="memo">デモ表示</span>`;
-  bb.innerHTML=`${stat}<span style="color:var(--sub)">｜ 完成 <b class="num" style="color:var(--ink)">${RAW.completed.length}</b> 件 ／ 未成 <b class="num" style="color:var(--ink)">${RAW.cases.length}</b> 件</span>
+  bb.innerHTML=`${stat}<span style="color:var(--sub)">｜ 完成 <b class="num" style="color:var(--ink)">${RAW.completed.length}</b> 件 ／ 未成 <b class="num" style="color:var(--ink)">${effCases().length}</b> 件</span>
     <span class="spacer"></span><button class="mini" id="reloadBtn">↻ 再読込</button><button class="mini" id="clearAll">全消去</button>`;
   document.getElementById('reloadBtn').onclick=()=>init();
   document.getElementById('clearAll').onclick=async()=>{if(confirm('未成・完成のデータをすべて消去しますか？（スプレッドシートも空になります）')){RAW={cases:[],completed:[]};renderBar();render();await gasSave();}};
