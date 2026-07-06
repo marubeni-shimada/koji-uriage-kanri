@@ -18,6 +18,8 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Hiragino K
 .appbar .exp{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);color:#DCE6F5;font:inherit;font-weight:700;font-size:12px;border-radius:8px;padding:7px 13px;cursor:pointer}
 .main{max-width:1240px;margin:0 auto;padding:16px 22px 70px}
 .slot{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:12px;transition:.15s}
+.imports{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:12px}
+.imports .slot{margin-bottom:0}
 .slot.hot{border-color:var(--accent);background:var(--accent-w)}
 .slot .ic{width:42px;height:42px;border-radius:10px;background:#EEF3FA;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0}
 .slot .t{flex:1;min-width:0}
@@ -81,9 +83,14 @@ td.r{text-align:right}
   <button class="exp" id="dl">Excel出力</button>
 </div>
 <div class="main">
-  <div class="slot" id="slot"><div class="ic">📥</div>
-    <div class="t"><b>工事一覧表を取り込む</b><div class="d">どっと原価の「工事一覧表」(.xlsx)。未成／完成はファイルから自動判定して積み上げます</div></div>
-    <label class="pick">ファイルを選ぶ<input type="file" id="file" accept=".xlsx,.xls"></label></div>
+  <div class="imports">
+    <div class="slot" id="slot1"><div class="ic">📋</div>
+      <div class="t"><b>未成工事を取り込む</b><div class="d">どっと原価「工事一覧表（未成）」。新規のみ積み上げ</div></div>
+      <label class="pick">選択<input type="file" id="file1" accept=".xlsx,.xls"></label></div>
+    <div class="slot" id="slot2"><div class="ic">✅</div>
+      <div class="t"><b>完成工事を取り込む</b><div class="d">どっと原価「工事一覧表（完成）」。積み上げ＋未成から移動</div></div>
+      <label class="pick">選択<input type="file" id="file2" accept=".xlsx,.xls"></label></div>
+  </div>
   <div class="batchbar" id="batchbar"></div>
 
   <div class="tabs" id="tabs"></div>
@@ -254,10 +261,14 @@ function parseKoujiList(wb){
 function mergeByCode(target,recs){const have=new Set(target.map(x=>String(x.code)));let add=0,skip=0;
   recs.forEach(r=>{if(have.has(String(r.code))){skip++;}else{have.add(String(r.code));target.push(r);add++;}});return {add,skip};}
 
-document.getElementById('file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
-  f.arrayBuffer().then(async b=>{try{
+function doImport(file, expected){
+  file.arrayBuffer().then(async b=>{try{
     const {type,records}=parseKoujiList(XLSX.read(b,{type:'array'}));
     if(!records.length){alert('工事一覧表として認識できませんでした。どっと原価の「工事一覧表」出力かご確認ください。');return;}
+    if(type!==expected){
+      const ft=type==='done'?'完成':'未成', st=expected==='done'?'完成':'未成';
+      if(!confirm(`このファイルは【${ft}】のデータのようです。\n（${st}の取込口に入れられました）\n\n中身に合わせて【${ft}】として取り込みます。よろしいですか？`)) return;
+    }
     let msg;
     if(type==='done'){ const {add,skip}=mergeByCode(RAW.completed,records); const moved=reconcile();
       msg=`【完成】として取込\n新規追加：${add}件${skip?`\n重複スキップ：${skip}件`:''}${moved?`\n未成から移動：${moved}件`:''}\n完成累計：${RAW.completed.length}件`; }
@@ -265,11 +276,15 @@ document.getElementById('file').addEventListener('change',e=>{const f=e.target.f
       msg=`【未成】として取込\n新規追加：${add}件${skip?`\n重複スキップ：${skip}件`:''}\n未成累計：${RAW.cases.length}件`; }
     CATFILT='all';renderBar();render();await gasSave();
     alert(msg+(CONNECTED?'\n（スプレッドシートに保存しました）':'\n（未接続：保存されていません）'));
-  }catch(err){alert('読み込み失敗：'+err.message);}});});
-const slot=document.getElementById('slot');
-['dragenter','dragover'].forEach(ev=>slot.addEventListener(ev,e=>{e.preventDefault();slot.classList.add('hot');}));
-['dragleave','drop'].forEach(ev=>slot.addEventListener(ev,e=>{e.preventDefault();slot.classList.remove('hot');}));
-slot.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f){const inp=document.getElementById('file');const dt=new DataTransfer();dt.items.add(f);inp.files=dt.files;inp.dispatchEvent(new Event('change'));}});
+  }catch(err){alert('読み込み失敗：'+err.message);}});
+}
+[['file1','slot1','open'],['file2','slot2','done']].forEach(([fid,sid,exp])=>{
+  document.getElementById(fid).addEventListener('change',e=>{const f=e.target.files[0];if(f){doImport(f,exp);e.target.value='';}});
+  const slot=document.getElementById(sid);
+  ['dragenter','dragover'].forEach(ev=>slot.addEventListener(ev,e=>{e.preventDefault();slot.classList.add('hot');}));
+  ['dragleave','drop'].forEach(ev=>slot.addEventListener(ev,e=>{e.preventDefault();slot.classList.remove('hot');}));
+  slot.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)doImport(f,exp);});
+});
 
 document.getElementById('dl').addEventListener('click',()=>{const wb=XLSX.utils.book_new();
   const H=['受注区分','コード','得意先','工事名','部門','担当','工期開始','工期末','完成日','請負(税抜円)'];
