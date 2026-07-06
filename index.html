@@ -72,6 +72,12 @@ td.r{text-align:right}
 .catdot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:7px;vertical-align:middle}
 .catbadge{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;white-space:nowrap}
 .deptbadge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:#EEF2F6;color:var(--sub)}
+td.act{white-space:nowrap}
+.rowact{font:inherit;font-size:11px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--accent);border-radius:7px;padding:4px 9px;cursor:pointer}
+.rowact:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.rowact.reset{color:var(--sub);margin-left:5px}
+.rowact.reset:hover{background:var(--sub);border-color:var(--sub);color:#fff}
+.mbadge{display:inline-block;font-size:10px;font-weight:800;padding:2px 7px;border-radius:5px;background:#FFF0D2;color:#8A5A00;margin-right:7px}
 .pctbar{display:inline-flex;align-items:center;gap:8px;width:100%;justify-content:flex-end}
 .pctbar .track{width:90px;height:8px;border-radius:4px;background:#E7ECF1;overflow:hidden;position:relative}
 .pctbar .track i{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
@@ -89,7 +95,7 @@ td.r{text-align:right}
 <body>
 <div class="appbar">
   <div class="logo">丸</div>
-  <div class="app-t">工事管理ダッシュボード<small>未成=最新に置換／完成=積み上げ ・ v7</small></div>
+  <div class="app-t">工事管理ダッシュボード<small>未成=最新に置換／完成=積み上げ ・ 手動振替 ・ v8</small></div>
   <div class="grow"></div>
   <button class="exp" id="dl">Excel出力</button>
 </div>
@@ -152,10 +158,23 @@ function normalize(){
 }
 function fix(r){ return {code:String(r.code||''),customer:r.customer||'',name:r.name||'',dept:r.dept||'',
   category:r.category||'未分類',person:r.person||'',pstart:r.pstart||null,pend:r.pend||null,done:r.done||null,
-  amount:Number(r.amount)||0, profit:(r.profit==null||r.profit==='')?null:Number(r.profit), _batch:r._batch||''}; }
-// 完成に載っているコードは未成一覧から隠す（物理的に消さないので削除で元に戻せる）
-function completedCodes(){ return new Set(RAW.completed.map(x=>String(x.code))); }
-function effCases(){ const c=completedCodes(); return RAW.cases.filter(r=>!c.has(String(r.code))); }
+  amount:Number(r.amount)||0, profit:(r.profit==null||r.profit==='')?null:Number(r.profit), _batch:r._batch||'',
+  _side:r._side||'', _manual:r._manual||''}; }
+// 表示: 完成データの _side='open' は「手動で未成へ繰越」を意味する
+function effDone(){ return RAW.completed.filter(r=>r._side!=='open'); }
+function effOpen(){ const cc=new Set(RAW.completed.map(r=>String(r.code)));
+  const carried=RAW.completed.filter(r=>r._side==='open');           // 手動で未成へ戻したもの
+  const autoOpen=RAW.cases.filter(r=>!cc.has(String(r.code)));       // 通常の未成（完成にあるものは除外）
+  return autoOpen.concat(carried); }
+function effCases(){ return effOpen(); } // 互換
+// 手動振替
+function compByCode(code){ return RAW.completed.find(r=>String(r.code)===String(code)); }
+function moveToOpen(code){ const r=compByCode(code); if(r) r._side='open'; }        // 完成→未成（繰越）
+function moveToDone(code){ const r=compByCode(code);
+  if(r){ r._side=''; }                                                              // 繰越を取消して完成へ
+  else { const c=RAW.cases.find(x=>String(x.code)===String(code)); if(c) RAW.completed.push(Object.assign({},c,{_side:'',_manual:'promote'})); } }
+function resetAuto(code){ const i=RAW.completed.findIndex(r=>String(r.code)===String(code)); if(i<0)return;
+  if(RAW.completed[i]._manual==='promote'){ RAW.completed.splice(i,1); } else { RAW.completed[i]._side=''; } }
 // 取込履歴（ファイル単位）を _batch タグから復元
 function batchList(){ const map={};
   const add=(arr,kind)=>arr.forEach(r=>{const t=r._batch||'（不明）';(map[t]=map[t]||{tag:t,n:0,kind:kind});map[t].n++;});
@@ -189,7 +208,7 @@ function renderBar(){
   const stat = STATUSMSG ? `<span class="memo${STATUSMSG.indexOf('⚠')>=0?'':' on'}">${STATUSMSG}</span>`
     : CONNECTED ? `<span class="memo on">☁ スプレッドシートに保存中${LASTSAVE?`（最終保存 ${tsText(LASTSAVE)}）`:''}</span>`
     : `<span class="memo">デモ表示</span>`;
-  bb.innerHTML=`${stat}<span style="color:var(--sub)">｜ 完成 <b class="num" style="color:var(--ink)">${RAW.completed.length}</b> 件 ／ 未成 <b class="num" style="color:var(--ink)">${effCases().length}</b> 件</span>
+  bb.innerHTML=`${stat}<span style="color:var(--sub)">｜ 完成 <b class="num" style="color:var(--ink)">${effDone().length}</b> 件 ／ 未成 <b class="num" style="color:var(--ink)">${effOpen().length}</b> 件</span>
     <span class="spacer"></span><button class="mini" id="reloadBtn">↻ 再読込</button><button class="mini" id="clearAll">全消去</button>`;
   document.getElementById('reloadBtn').onclick=()=>init();
   document.getElementById('clearAll').onclick=async()=>{if(confirm('未成・完成のデータをすべて消去しますか？（スプレッドシートも空になります）')){RAW={cases:[],completed:[]};renderBar();render();await gasSave();}};
@@ -214,14 +233,14 @@ function renderBatches(){
       deleteBatch(tag); renderBar(); render(); await gasSave(); } });
 }
 function viewDash(){
-  const {arr,tAmt,tN}=catAgg(RAW.completed);
-  const eff=effCases();
+  const {arr,tAmt,tN}=catAgg(effDone());
+  const eff=effOpen();
   const openAmt=eff.reduce((s,r)=>s+(r.amount||0),0);
   const kpis=`<div class="kpirow">
-    <div class="kpi up"><div class="l">完成工事（累計）</div><div class="b num">${RAW.completed.length}<span class="u"> 件</span></div><div class="m">完成工事高計 <b class="num">${man(tAmt)}</b> 万円</div></div>
+    <div class="kpi up"><div class="l">完成工事（累計）</div><div class="b num">${effDone().length}<span class="u"> 件</span></div><div class="m">完成工事高計 <b class="num">${man(tAmt)}</b> 万円</div></div>
     <div class="kpi mid"><div class="l">未成工事（残）</div><div class="b num">${eff.length}<span class="u"> 件</span></div><div class="m">請負計 <b class="num">${man(openAmt)}</b> 万円（税抜）</div></div>
     <div class="kpi"><div class="l">受注区分</div><div class="b num">${arr.length}<span class="u"> 区分</span></div><div class="m">完成工事の内訳</div></div></div>`;
-  if(!RAW.completed.length) return kpis+`<div class="card"><div class="empty">完成の「工事一覧表」を取り込むと、受注区分の割合がここに表示されます。<br>（どっと原価で「完成」を指定して出力 → このファイルを取り込み）</div></div>`;
+  if(!effDone().length) return kpis+`<div class="card"><div class="empty">完成の「工事一覧表」を取り込むと、受注区分の割合がここに表示されます。<br>（どっと原価で「完成」を指定して出力 → このファイルを取り込み）</div></div>`;
   const legend=arr.map(o=>`<tr><td><span class="catdot" style="background:${col(o.cat)}"></span><span style="font-weight:700">${o.cat}</span></td>
     <td class="r num">${o.n}</td><td class="r num">${man(o.amt)}</td>
     <td class="r"><span class="pctbar"><span class="track"><i style="width:${((DONUT==='amount'?o.pctAmt:o.pctN)*100).toFixed(0)}%;background:${col(o.cat)}"></i></span><span class="v num">${pct(DONUT==='amount'?o.pctAmt:o.pctN)}</span></span></td></tr>`).join('');
@@ -234,7 +253,14 @@ function viewDash(){
       <tbody>${legend}</tbody>
       <tfoot><tr style="border-top:2px solid var(--ink);font-weight:800;background:#F3F6F9"><td style="padding:9px 11px">合計</td><td class="r num" style="padding:9px 11px">${tN}</td><td class="r num" style="padding:9px 11px">${man(tAmt)}</td><td class="r" style="padding:9px 11px">100%</td></tr></tfoot></table></div></div>`;
 }
-function listTable(list,dateLabel,dateField,amtLabel){
+function actCell(r,ctx){
+  if(ctx==='done'){ const man=r._manual==='promote';
+    return `<td class="act">${man?'<span class="mbadge">手動</span>':''}<button class="rowact" data-act="toopen" data-code="${r.code}">→未成へ</button>${man?`<button class="rowact reset" data-act="reset" data-code="${r.code}">自動</button>`:''}</td>`;
+  } else { const man=r._side==='open';
+    return `<td class="act">${man?'<span class="mbadge">繰越</span>':''}<button class="rowact" data-act="todone" data-code="${r.code}">→完成へ</button>${man?`<button class="rowact reset" data-act="reset" data-code="${r.code}">自動</button>`:''}</td>`;
+  }
+}
+function listTable(list,dateLabel,dateField,amtLabel,ctx){
   const cats=['all',...[...new Set(list.map(r=>r.category||'未分類'))].sort()];
   let rows=list.slice(); if(CATFILT!=='all')rows=rows.filter(r=>(r.category||'未分類')===CATFILT);
   rows.sort((a,b)=>{let va=a[sortKey],vb=b[sortKey];if(sortKey==='amount'){va=a.amount||0;vb=b.amount||0;}else{va=String(va||'');vb=String(vb||'');}return va<vb?-1*sortDir:va>vb?1*sortDir:0;});
@@ -244,25 +270,28 @@ function listTable(list,dateLabel,dateField,amtLabel){
     <td><div class="nm">${r.name}</div><div class="cust">${r.customer}</div></td>
     <td><span class="deptbadge">${r.dept||''}</span></td><td>${r.person||''}</td>
     <td class="num" style="color:var(--sub)">${r[dateField]||''}</td>
-    <td class="r num">${man(r.amount)}</td></tr>`).join('');
+    <td class="r num">${man(r.amount)}</td>${actCell(r,ctx)}</tr>`).join('');
   const tot=rows.reduce((s,r)=>s+(r.amount||0),0);
-  return {opt,cats,rows,body,tot,head:`<tr><th data-k="category">受注区分</th><th data-k="name">工事名／得意先</th><th data-k="dept">部門</th><th data-k="person">担当</th><th data-k="${dateField}">${dateLabel}</th><th class="r" data-k="amount">${amtLabel||'金額(万円)'}</th></tr>`};
+  return {opt,cats,rows,body,tot,head:`<tr><th data-k="category">受注区分</th><th data-k="name">工事名／得意先</th><th data-k="dept">部門</th><th data-k="person">担当</th><th data-k="${dateField}">${dateLabel}</th><th class="r" data-k="amount">${amtLabel||'金額(万円)'}</th><th>操作</th></tr>`};
 }
-function viewDone(){ const t=listTable(RAW.completed,'完成年月','done','完成工事高(万円)');
+function viewDone(){ const t=listTable(effDone(),'完成年月','done','完成工事高(万円)','done');
   return `<div class="tablecard"><div class="tablehead"><h2>完成工事（受注区分で自動振り分け・累計）</h2>
     <div class="right"><select class="filt" id="catfilt">${t.opt}</select><span>${t.rows.length}件</span></div></div>
-    <div class="scroll"><table><thead>${t.head}</thead><tbody>${t.body||'<tr><td colspan=6 class=empty>まだありません</td></tr>'}</tbody>
-    <tfoot><tr style="border-top:2px solid var(--ink);font-weight:800;background:#F3F6F9"><td colspan="5" style="padding:10px 11px">合計 ${t.rows.length}件</td><td class="r num" style="padding:10px 11px">${man(t.tot)}</td></tr></tfoot></table></div></div>`;
+    <div class="scroll"><table><thead>${t.head}</thead><tbody>${t.body||'<tr><td colspan=7 class=empty>まだありません</td></tr>'}</tbody>
+    <tfoot><tr style="border-top:2px solid var(--ink);font-weight:800;background:#F3F6F9"><td colspan="5" style="padding:10px 11px">合計 ${t.rows.length}件</td><td class="r num" style="padding:10px 11px">${man(t.tot)}</td><td></td></tr></tfoot></table></div></div>`;
 }
-function viewOpen(){ const t=listTable(effCases(),'工期末','pend','請負(税抜万円)');
+function viewOpen(){ const t=listTable(effOpen(),'工期末','pend','請負(税抜万円)','open');
   return `<div class="tablecard"><div class="tablehead"><h2>未成工事（最新スナップショット・完成分は自動で除外）</h2>
     <div class="right"><select class="filt" id="catfilt">${t.opt}</select><span>${t.rows.length}件</span></div></div>
-    <div class="scroll"><table><thead>${t.head}</thead><tbody>${t.body||'<tr><td colspan=6 class=empty>まだありません</td></tr>'}</tbody>
-    <tfoot><tr style="border-top:2px solid var(--ink);font-weight:800;background:#F3F6F9"><td colspan="5" style="padding:10px 11px">合計 ${t.rows.length}件</td><td class="r num" style="padding:10px 11px">${man(t.tot)}</td></tr></tfoot></table></div></div>`;
+    <div class="scroll"><table><thead>${t.head}</thead><tbody>${t.body||'<tr><td colspan=7 class=empty>まだありません</td></tr>'}</tbody>
+    <tfoot><tr style="border-top:2px solid var(--ink);font-weight:800;background:#F3F6F9"><td colspan="5" style="padding:10px 11px">合計 ${t.rows.length}件</td><td class="r num" style="padding:10px 11px">${man(t.tot)}</td><td></td></tr></tfoot></table></div></div>`;
 }
 function bind(){document.querySelectorAll('[data-donut]').forEach(b=>b.onclick=()=>{DONUT=b.dataset.donut;render();});
   const cf=document.getElementById('catfilt');if(cf)cf.onchange=()=>{CATFILT=cf.value;render();};
-  document.querySelectorAll('thead th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==='amount')?-1:1;}render();});}
+  document.querySelectorAll('thead th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==='amount')?-1:1;}render();});
+  document.querySelectorAll('.rowact').forEach(b=>b.onclick=async()=>{const code=b.dataset.code,act=b.dataset.act;
+    if(act==='toopen')moveToOpen(code); else if(act==='todone')moveToDone(code); else if(act==='reset')resetAuto(code);
+    renderBar();render();await gasSave();});}
 document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b){TAB=b.dataset.t;CATFILT='all';render();}});
 
 // ===== 工事一覧表パーサ（2行1レコード・未成/完成 自動判定）=====
@@ -349,8 +378,8 @@ document.getElementById('dl').addEventListener('click',()=>{const wb=XLSX.utils.
   const H=['受注区分','コード','得意先','工事名','部門','担当','工期開始','工期末','完成日','請負(税抜円)'];
   const line=r=>[r.category,r.code,r.customer,r.name,r.dept,r.person,r.pstart||'',r.pend||'',r.done||'',Math.round(r.amount||0)];
   const mk=(name,arr)=>{const ws=XLSX.utils.aoa_to_sheet([H,...arr.map(line)]);ws['!cols']=[{wch:16},{wch:11},{wch:22},{wch:34},{wch:8},{wch:10},{wch:11},{wch:11},{wch:11},{wch:14}];XLSX.utils.book_append_sheet(wb,ws,name);};
-  mk('完成工事',RAW.completed);mk('未成工事',RAW.cases);
-  const {arr}=catAgg(RAW.completed);
+  mk('完成工事',effDone());mk('未成工事',effOpen());
+  const {arr}=catAgg(effDone());
   const cws=XLSX.utils.aoa_to_sheet([['受注区分','件数','請負(万円)','割合'],...arr.map(o=>[o.cat,o.n,Math.round(o.amt/10000),Number(o.pctAmt.toFixed(4))])]);
   XLSX.utils.book_append_sheet(wb,cws,'受注区分サマリー');
   XLSX.writeFile(wb,'工事管理_ダッシュボード.xlsx');});
